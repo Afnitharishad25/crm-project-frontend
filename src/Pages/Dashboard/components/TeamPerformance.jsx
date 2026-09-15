@@ -1,34 +1,120 @@
+
 import React, { useEffect, useState } from "react";
-import { Box, Typography, Paper, Button } from "@mui/material";
+
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+} from "@mui/material";
+
 import api from "../../../services/api";
 
+// =====================================================
+// CSV HELPER
+// =====================================================
+
+const escapeCSV = (value) => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const stringValue = String(value);
+
+  return `"${stringValue.replace(/"/g, '""')}"`;
+};
+
+// =====================================================
+// TEAM PERFORMANCE
+// =====================================================
+
 const TeamPerformance = () => {
+  // ===================================================
+  // STATE
+  // ===================================================
+
   const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ===================================================
+  // FETCH TEAM PERFORMANCE
+  // ===================================================
 
   useEffect(() => {
     const fetchTeamPerformance = async () => {
       try {
-        const response = await api.get("/dashboard/team-performance/");
-        console.log("Dashboard team performance:", response.data);
+        setLoading(true);
 
-        const formattedData = response.data.map((employee) => ({
-          name: `${employee.first_name} ${employee.last_name}`,
-          active: employee.active_deals,
-          closed: employee.closed_deals,
-          revenue: Number(employee.revenue),
-          change: employee.revenue_change,
-        }));
+        const response = await api.get(
+          "/dashboard/team-performance/"
+        );
+
+        console.log(
+          "Dashboard team performance:",
+          response.data
+        );
+
+        const employees = Array.isArray(response.data)
+          ? response.data
+          : [];
+
+        const formattedData = employees.map(
+          (employee, index) => ({
+            id: employee.id ?? index,
+
+            name:
+              `${employee.first_name || ""} ${
+                employee.last_name || ""
+              }`.trim() || "Unknown",
+
+            active: Number(
+              employee.active_deals || 0
+            ),
+
+            closed: Number(
+              employee.closed_deals || 0
+            ),
+
+            revenue: Number(
+              employee.revenue || 0
+            ),
+
+            change:
+              employee.revenue_change ?? "0%",
+          })
+        );
+
+        console.log(
+          "Formatted team performance:",
+          formattedData
+        );
 
         setRows(formattedData);
       } catch (error) {
-        console.error("Team Performance API Error:", error);
+        console.error(
+          "Team Performance API Error:",
+          error.response?.data ||
+            error.message
+        );
+
+        setRows([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchTeamPerformance();
   }, []);
 
+  // ===================================================
+  // EXPORT CSV
+  // ===================================================
+
   const exportCSV = () => {
+    if (rows.length === 0) {
+      return;
+    }
+
     const header = [
       "Name",
       "Active Deals",
@@ -38,123 +124,382 @@ const TeamPerformance = () => {
     ];
 
     const csvRows = [
-      header.join(","),
-      ...rows.map((r) =>
-        [r.name, r.active, r.closed, `$${r.revenue}`, r.change].join(","),
+      header.map(escapeCSV).join(","),
+
+      ...rows.map((row) =>
+        [
+          row.name,
+          row.active,
+          row.closed,
+          `$${Number(row.revenue).toFixed(2)}`,
+          row.change,
+        ]
+          .map(escapeCSV)
+          .join(",")
       ),
     ];
 
-    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "team_performance.csv";
-    a.click();
+    const csvContent = csvRows.join("\n");
+
+    const blob = new Blob(
+      [csvContent],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
+
+    const url =
+      window.URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+    link.download =
+      "team_performance.csv";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
     window.URL.revokeObjectURL(url);
   };
 
+  // ===================================================
+  // REVENUE CHANGE COLOR
+  // ===================================================
+
+  const getChangeColor = (change) => {
+    const changeString = String(
+      change ?? "0%"
+    ).trim();
+
+    if (changeString.startsWith("-")) {
+      return "red";
+    }
+
+    return "green";
+  };
+
+  // ===================================================
+  // RENDER
+  // ===================================================
+
   return (
-    <Box sx={{ mt: 3 }}>
-      {/* Title left, button right */}
+    <Paper
+      sx={{
+        width: "100%",
+        boxShadow: "none",
+      }}
+    >
+      {/* =================================================
+          HEADER
+      ================================================= */}
+
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          width: "100%",
-          mb: 4,
+          mb: 3,
         }}
       >
         <Typography
           variant="h6"
-          sx={{ fontSize: 20, fontWeight: "bold", color: "#1F2937" }}
+          sx={{
+            fontSize: 19,
+            fontWeight: "bold",
+            color: "#191b1e",
+          }}
         >
-          Team Performance Tracking
+          Team Performance
         </Typography>
 
         <Button
           variant="outlined"
-          sx={{
-            borderColor: "#6C63FF",
-            color: "#6C63FF",
-            borderRadius: "10px",
-            fontWeight: "bold",
-            fontSize: 12,
-            px: 3,
-            "&:hover": {
-              borderColor: "darkviolet",
-              color: "darkviolet",
-              backgroundColor: "#f3e8ff",
-            },
-          }}
           onClick={exportCSV}
+          disabled={
+            loading || rows.length === 0
+          }
+          sx={{
+            textTransform: "none",
+            borderRadius: 1,
+          }}
         >
           Export CSV
         </Button>
       </Box>
 
-      {/* Headings row inside a box */}
-      <Paper
+      {/* =================================================
+          TABLE
+      ================================================= */}
+
+      <Box
         sx={{
-          mb: 2,
-          p: 2,
-          border: "1px solid #E5E7EB",
-          borderRadius: 1,
-          display: "flex",
-          fontWeight: "bold",
-          bgcolor: "#F9FAFB",
+          width: "100%",
+          overflowX: "auto",
         }}
       >
-        <Box sx={{ flex: 1 }}>Employee</Box>
-        <Box sx={{ flex: 1, textAlign: "right" }}>Active Deals</Box>
-        <Box sx={{ flex: 1, textAlign: "right" }}>Closed Deals</Box>
-        {/* Single Revenue header */}
-        <Box sx={{ flex: 2, textAlign: "center" }}>Revenue</Box>
-      </Paper>
-
-      {/* Each row also inside a box */}
-      {rows.map((row) => (
-        <Paper
-          key={row.name}
+        <Box
+          component="table"
           sx={{
-            mb: 2,
-            p: 1.5,
-            border: "1px solid rgba(229, 231, 235, 0.5)",
-            borderRadius: 1,
-            display: "flex",
-            alignItems: "center",
+            width: "100%",
+            borderCollapse: "collapse",
           }}
         >
-          <Box sx={{ flex: 1 }}>{row.name}</Box>
-          <Box sx={{ flex: 1, textAlign: "right" }}>{row.active}</Box>
-          <Box sx={{ flex: 1, textAlign: "right" }}>{row.closed}</Box>
+          {/* =================================================
+              TABLE HEADER
+          ================================================= */}
 
-          {/* Revenue split into two mini-columns */}
-          <Box
-            sx={{
-              flex: 2,
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 2,
-            }}
-          >
-            <Box sx={{ textAlign: "right", flex: 1 }}>
-              ${row.revenue.toLocaleString()}
-            </Box>
-            <Box
-              sx={{
-                textAlign: "left",
-                flex: 1,
-                color: row.change.startsWith("+") ? "green" : "red",
-                fontWeight: "bold",
-              }}
-            >
-              {row.change}
+          <Box component="thead">
+            <Box component="tr">
+
+              {/* NAME */}
+
+              <Box
+                component="th"
+                sx={{
+                  textAlign: "left",
+                  p: 2,
+                  fontSize: 13,
+                  color: "#6B7280",
+                  fontWeight: 600,
+                  borderBottom:
+                    "1px solid #E5E7EB",
+                }}
+              >
+                Name
+              </Box>
+
+              {/* ACTIVE DEALS */}
+
+              <Box
+                component="th"
+                sx={{
+                  textAlign: "center",
+                  p: 2,
+                  fontSize: 13,
+                  color: "#6B7280",
+                  fontWeight: 600,
+                  borderBottom:
+                    "1px solid #E5E7EB",
+                }}
+              >
+                Active Deals
+              </Box>
+
+              {/* CLOSED DEALS */}
+
+              <Box
+                component="th"
+                sx={{
+                  textAlign: "center",
+                  p: 2,
+                  fontSize: 13,
+                  color: "#6B7280",
+                  fontWeight: 600,
+                  borderBottom:
+                    "1px solid #E5E7EB",
+                }}
+              >
+                Closed Deals
+              </Box>
+
+              {/* REVENUE */}
+
+              <Box
+                component="th"
+                sx={{
+                  textAlign: "right",
+                  p: 2,
+                  fontSize: 13,
+                  color: "#6B7280",
+                  fontWeight: 600,
+                  borderBottom:
+                    "1px solid #E5E7EB",
+                }}
+              >
+                Revenue Amount
+              </Box>
+
+              {/* REVENUE CHANGE */}
+
+              <Box
+                component="th"
+                sx={{
+                  textAlign: "right",
+                  p: 2,
+                  fontSize: 13,
+                  color: "#6B7280",
+                  fontWeight: 600,
+                  borderBottom:
+                    "1px solid #E5E7EB",
+                }}
+              >
+                Revenue % Change
+              </Box>
+
             </Box>
           </Box>
-        </Paper>
-      ))}
-    </Box>
+
+          {/* =================================================
+              TABLE BODY
+          ================================================= */}
+
+          <Box component="tbody">
+
+            {/* =================================================
+                LOADING
+            ================================================= */}
+
+            {loading && (
+              <Box component="tr">
+                <Box
+                  component="td"
+                  colSpan={5}
+                  sx={{
+                    textAlign: "center",
+                    p: 3,
+                    fontSize: 13,
+                    color: "#6B7280",
+                  }}
+                >
+                  Loading team performance...
+                </Box>
+              </Box>
+            )}
+
+            {/* =================================================
+                EMPTY
+            ================================================= */}
+
+            {!loading &&
+              rows.length === 0 && (
+                <Box component="tr">
+                  <Box
+                    component="td"
+                    colSpan={5}
+                    sx={{
+                      textAlign: "center",
+                      p: 3,
+                      fontSize: 13,
+                      color: "#6B7280",
+                    }}
+                  >
+                    No team performance data
+                    available.
+                  </Box>
+                </Box>
+              )}
+
+            {/* =================================================
+                DATA
+            ================================================= */}
+
+            {!loading &&
+              rows.length > 0 &&
+              rows.map((row) => (
+                <Box
+                  component="tr"
+                  key={row.id}
+                >
+                  {/* NAME */}
+
+                  <Box
+                    component="td"
+                    sx={{
+                      p: 2,
+                      fontSize: 14,
+                      color: "#1F2937",
+                      borderBottom:
+                        "1px solid #F3F4F6",
+                    }}
+                  >
+                    {row.name}
+                  </Box>
+
+                  {/* ACTIVE DEALS */}
+
+                  <Box
+                    component="td"
+                    sx={{
+                      textAlign: "center",
+                      p: 2,
+                      fontSize: 14,
+                      color: "#1F2937",
+                      borderBottom:
+                        "1px solid #F3F4F6",
+                    }}
+                  >
+                    {row.active}
+                  </Box>
+
+                  {/* CLOSED DEALS */}
+
+                  <Box
+                    component="td"
+                    sx={{
+                      textAlign: "center",
+                      p: 2,
+                      fontSize: 14,
+                      color: "#1F2937",
+                      borderBottom:
+                        "1px solid #F3F4F6",
+                    }}
+                  >
+                    {row.closed}
+                  </Box>
+
+                  {/* REVENUE */}
+
+                  <Box
+                    component="td"
+                    sx={{
+                      textAlign: "right",
+                      p: 2,
+                      fontSize: 14,
+                      color: "#1F2937",
+                      borderBottom:
+                        "1px solid #F3F4F6",
+                    }}
+                  >
+                    $
+                    {row.revenue.toLocaleString(
+                      undefined,
+                      {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2,
+                      }
+                    )}
+                  </Box>
+
+                  {/* REVENUE CHANGE */}
+
+                  <Box
+                    component="td"
+                    sx={{
+                      textAlign: "right",
+                      p: 2,
+                      fontSize: 14,
+                      color: getChangeColor(
+                        row.change
+                      ),
+                      borderBottom:
+                        "1px solid #F3F4F6",
+                    }}
+                  >
+                    {String(row.change)}
+                  </Box>
+
+                </Box>
+              ))}
+
+          </Box>
+        </Box>
+      </Box>
+    </Paper>
   );
 };
 

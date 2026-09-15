@@ -1,3 +1,4 @@
+
 import {
   Box,
   TextField,
@@ -5,7 +6,7 @@ import {
   Typography,
   MenuItem,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function PhoneInputField({
   label,
@@ -13,28 +14,122 @@ export default function PhoneInputField({
   value,
   onChange,
   name,
+  placeholder = "Enter",
 }) {
   const [countryCode, setCountryCode] = useState("+91");
+  const [phoneNumber, setPhoneNumber] = useState("");
 
-  const handlePhoneChange = (e) => {
-    const inputValue = e.target.value;
+  // =====================================================
+  // COUNTRY CONFIGURATION
+  // =====================================================
 
-    // Allow only numbers
-    const digitsOnly = inputValue.replace(/\D/g, "");
+  const countryConfig = {
+    "+971": {
+      maxDigits: 9,
+    },
+    "+91": {
+      maxDigits: 10,
+    },
+    "+1": {
+      maxDigits: 10,
+    },
+    "+44": {
+      maxDigits: 10,
+    },
+  };
 
-    // Stop user from entering more than 12 digits
-    if (digitsOnly.length > 12) {
+  // =====================================================
+  // DETECT COUNTRY FROM EXISTING VALUE
+  // =====================================================
+
+  useEffect(() => {
+    if (!value) {
+      setPhoneNumber("");
       return;
     }
 
-    // Send the value back to parent
+    const stringValue = String(value).trim();
+
+    const matchedCountry = Object.keys(countryConfig).find(
+      (code) => stringValue.startsWith(code)
+    );
+
+    if (matchedCountry) {
+      setCountryCode(matchedCountry);
+
+      const localNumber = stringValue
+        .substring(matchedCountry.length)
+        .replace(/\D/g, "");
+
+      const maxDigits =
+        countryConfig[matchedCountry].maxDigits;
+
+      setPhoneNumber(localNumber.slice(0, maxDigits));
+    } else {
+      // If there is no country code, keep the number as it is.
+      const digitsOnly = stringValue.replace(/\D/g, "");
+
+      const maxDigits =
+        countryConfig[countryCode]?.maxDigits || 12;
+
+      setPhoneNumber(digitsOnly.slice(0, maxDigits));
+    }
+  }, [value]);
+
+  // =====================================================
+  // COUNTRY CHANGE
+  // =====================================================
+
+  const handleCountryChange = (e) => {
+    const newCountryCode = e.target.value;
+
+    setCountryCode(newCountryCode);
+    setPhoneNumber("");
+
     onChange({
       target: {
-        name: name,
-        value: digitsOnly,
+        name,
+        value: "",
       },
     });
   };
+
+  // =====================================================
+  // PHONE CHANGE
+  // =====================================================
+
+  const handlePhoneChange = (e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, "");
+
+    const maxDigits =
+      countryConfig[countryCode]?.maxDigits || 12;
+
+    // Don't allow more digits than the selected country.
+    if (digitsOnly.length > maxDigits) {
+      return;
+    }
+
+    setPhoneNumber(digitsOnly);
+
+    const fullPhoneNumber =
+      digitsOnly.length > 0
+        ? `${countryCode}${digitsOnly}`
+        : "";
+
+    onChange({
+      target: {
+        name,
+        value: fullPhoneNumber,
+      },
+    });
+  };
+
+  const maxDigits =
+    countryConfig[countryCode]?.maxDigits || 12;
+
+  // =====================================================
+  // UI
+  // =====================================================
 
   return (
     <Box>
@@ -63,14 +158,14 @@ export default function PhoneInputField({
 
       <TextField
         fullWidth
-        placeholder="Enter"
+        placeholder={placeholder}
         name={name}
-        value={value}
+        value={phoneNumber}
         onChange={handlePhoneChange}
         slotProps={{
           htmlInput: {
             inputMode: "numeric",
-            maxLength: 12,
+            maxLength: maxDigits,
           },
 
           input: {
@@ -79,14 +174,16 @@ export default function PhoneInputField({
                 <TextField
                   select
                   value={countryCode}
-                  onChange={(e) =>
-                    setCountryCode(e.target.value)
-                  }
+                  onChange={handleCountryChange}
                   variant="standard"
                   sx={{
                     width: 90,
                   }}
                 >
+                  <MenuItem value="+971">
+                    🇦🇪 +971
+                  </MenuItem>
+
                   <MenuItem value="+91">
                     🇮🇳 +91
                   </MenuItem>
