@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 
 import { Drawer, Box, Grid } from "@mui/material";
@@ -9,6 +8,7 @@ import DrawerHeader from "../../../Components/common/DrawerHeader";
 import CommonInput from "../../../Components/common/CommonInput";
 import CommonButton from "../../../Components/common/CommonButton";
 import CommonSelect from "../../../Components/common/CommonSelect";
+import CommonMultiSelect from "../../../Components/common/CommonMultiSelect";
 import FormDatePicker from "../../../Components/common/FormDatePicker";
 
 import api from "../../../services/api";
@@ -18,22 +18,28 @@ export default function CreateDealsDrawer({
   onClose,
   onDealSaved,
   deal,
+  leadId,
 }) {
+  // =================================================
   // EMPTY FORM
+  // =================================================
 
   const emptyForm = {
     dealName: "",
     dealStage: "",
     associatedLead: "",
     amount: "",
-    dealOwner: "",
+    dealOwner: [],
     closeDate: null,
     priority: "",
   };
 
+  // =================================================
   // STATES
+  // =================================================
 
-  const [formData, setFormData] = useState(emptyForm);
+  const [formData, setFormData] =
+    useState(emptyForm);
 
   const [leads, setLeads] = useState([]);
 
@@ -43,19 +49,30 @@ export default function CreateDealsDrawer({
 
   const [error, setError] = useState("");
 
+  // =================================================
   // EDIT MODE
+  // =================================================
 
   const isEditMode = Boolean(deal);
 
+  // =================================================
   // FETCH LEADS
+  // =================================================
 
   const fetchLeads = async () => {
     try {
-      const response = await api.get("/leads/leadslist/");
+      const response = await api.get(
+        "/leads/leadslist/"
+      );
 
-      console.log("LEADS RESPONSE:", response.data);
+      console.log(
+        "LEADS RESPONSE:",
+        response.data
+      );
 
-      const data = Array.isArray(response.data)
+      const data = Array.isArray(
+        response.data
+      )
         ? response.data
         : response.data.results || [];
 
@@ -72,15 +89,24 @@ export default function CreateDealsDrawer({
     }
   };
 
+  // =================================================
   // FETCH USERS
+  // =================================================
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get("/accounts/users/");
+      const response = await api.get(
+        "/accounts/users/"
+      );
 
-      console.log("USERS RESPONSE:", response.data);
+      console.log(
+        "USERS RESPONSE:",
+        response.data
+      );
 
-      const data = Array.isArray(response.data)
+      const data = Array.isArray(
+        response.data
+      )
         ? response.data
         : response.data.results || [];
 
@@ -97,7 +123,9 @@ export default function CreateDealsDrawer({
     }
   };
 
+  // =================================================
   // LOAD LEADS + USERS WHEN DRAWER OPENS
+  // =================================================
 
   useEffect(() => {
     if (!open) {
@@ -116,35 +144,64 @@ export default function CreateDealsDrawer({
     loadOptions();
   }, [open]);
 
+  // =================================================
   // LOAD DEAL DATA WHEN EDITING
+  // =================================================
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    // =================================================
     // CREATE MODE
+    // =================================================
 
     if (!deal) {
-      setFormData(emptyForm);
+      setFormData({
+        ...emptyForm,
+
+        // Automatically select converted lead
+        associatedLead:
+          leadId !== null &&
+          leadId !== undefined &&
+          leadId !== ""
+            ? String(leadId)
+            : "",
+      });
+
       setError("");
+
+      console.log(
+        "CREATE DEAL - ASSOCIATED LEAD:",
+        leadId
+      );
 
       return;
     }
 
+    // =================================================
     // EDIT MODE
+    // =================================================
 
-    console.log("DEAL FOR EDIT:", deal);
+    console.log(
+      "DEAL FOR EDIT:",
+      deal
+    );
 
     setFormData({
-      dealName: deal.deal_name || "",
+      dealName:
+        deal.deal_name || "",
 
-      dealStage: deal.deal_stage || "",
+      dealStage:
+        deal.deal_stage || "",
 
       associatedLead:
         deal.associated_lead !== null &&
         deal.associated_lead !== undefined
-          ? String(deal.associated_lead)
+          ? String(
+              deal.associated_lead
+            )
           : "",
 
       amount:
@@ -153,24 +210,40 @@ export default function CreateDealsDrawer({
           ? String(deal.amount)
           : "",
 
+      // Multiple Deal Owners
+      //
+      // Backend response:
+      // deal_owner_ids: [1, 5, 8]
+      //
+      // CommonMultiSelect expects
+      // string values.
       dealOwner:
-        deal.deal_owner_id !== null &&
-        deal.deal_owner_id !== undefined
-          ? String(deal.deal_owner_id)
-          : "",
+        Array.isArray(
+          deal.deal_owner_ids
+        )
+          ? deal.deal_owner_ids.map(
+              (id) => String(id)
+            )
+          : [],
 
       closeDate: deal.close_date
         ? dayjs(deal.close_date)
         : null,
 
-      priority: deal.priority || "",
+      priority:
+        deal.priority || "",
     });
-  }, [deal, open]);
+  }, [deal, open, leadId]);
 
+  // =================================================
   // HANDLE INPUT CHANGE
+  // =================================================
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const {
+      name,
+      value,
+    } = e.target;
 
     setFormData((prev) => ({
       ...prev,
@@ -178,19 +251,26 @@ export default function CreateDealsDrawer({
     }));
   };
 
+  // =================================================
   // CREATE / UPDATE DEAL
+  // =================================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
       setLoading(true);
+
       setError("");
 
+      // =================================================
       // VALIDATION
+      // =================================================
 
       if (!formData.dealName) {
-        setError("Please enter deal name.");
+        setError(
+          "Please enter deal name."
+        );
 
         setLoading(false);
 
@@ -198,7 +278,9 @@ export default function CreateDealsDrawer({
       }
 
       if (!formData.dealStage) {
-        setError("Please select deal stage.");
+        setError(
+          "Please select deal stage."
+        );
 
         setLoading(false);
 
@@ -215,47 +297,81 @@ export default function CreateDealsDrawer({
         return;
       }
 
-      if (!formData.dealOwner) {
-        setError("Please select a deal owner.");
+      // =================================================
+      // DEAL OWNER VALIDATION
+      // =================================================
+
+      if (
+        !Array.isArray(
+          formData.dealOwner
+        ) ||
+        formData.dealOwner.length === 0
+      ) {
+        setError(
+          "Please select at least one deal owner."
+        );
 
         setLoading(false);
 
         return;
       }
 
+      // =================================================
       // PAYLOAD
+      // =================================================
 
       const dealData = {
-        deal_name: formData.dealName,
+        deal_name:
+          formData.dealName,
 
-        deal_stage: formData.dealStage,
+        deal_stage:
+          formData.dealStage,
 
-        associated_lead: Number(
-          formData.associatedLead
-        ),
+        associated_lead:
+          Number(
+            formData.associatedLead
+          ),
 
-        amount: formData.amount,
+        amount:
+          formData.amount,
 
-        deal_owner: Number(formData.dealOwner),
+        // Multiple Deal Owners
+        deal_owners:
+          formData.dealOwner.map(
+            (id) => Number(id)
+          ),
 
-        close_date: formData.closeDate
-          ? formData.closeDate.format("YYYY-MM-DD")
-          : null,
+        close_date:
+          formData.closeDate
+            ? formData.closeDate.format(
+                "YYYY-MM-DD"
+              )
+            : null,
 
-        priority: formData.priority,
+        priority:
+          formData.priority,
       };
 
-      console.log("DEAL PAYLOAD:", dealData);
+      console.log(
+        "DEAL PAYLOAD:",
+        dealData
+      );
 
+      // =================================================
       // UPDATE DEAL
+      // =================================================
 
       if (isEditMode) {
-        console.log("Updating deal:", deal.id);
-
-        const response = await api.put(
-          `/deals/${deal.id}/`,
-          dealData
+        console.log(
+          "Updating deal:",
+          deal.id
         );
+
+        const response =
+          await api.put(
+            `/deals/${deal.id}/`,
+            dealData
+          );
 
         console.log(
           "DEAL UPDATED:",
@@ -263,15 +379,20 @@ export default function CreateDealsDrawer({
         );
       }
 
+      // =================================================
       // CREATE DEAL
+      // =================================================
 
       else {
-        console.log("Creating deal");
-
-        const response = await api.post(
-          "/deals/",
-          dealData
+        console.log(
+          "Creating deal"
         );
+
+        const response =
+          await api.post(
+            "/deals/",
+            dealData
+          );
 
         console.log(
           "DEAL CREATED:",
@@ -279,28 +400,41 @@ export default function CreateDealsDrawer({
         );
       }
 
+      // =================================================
       // REFRESH DEAL LIST
+      // =================================================
 
       if (onDealSaved) {
         await onDealSaved();
       }
 
+      // =================================================
       // CLEAR FORM
+      // =================================================
 
-      setFormData(emptyForm);
+      setFormData({
+        ...emptyForm,
+      });
 
+      // =================================================
       // CLOSE DRAWER
+      // =================================================
 
       onClose();
     } catch (error) {
       console.error(
         "SAVE DEAL ERROR:",
-        error.response?.data || error
+        error.response?.data ||
+          error
       );
 
-      if (error.response?.data) {
+      if (
+        error.response?.data
+      ) {
         setError(
-          JSON.stringify(error.response.data)
+          JSON.stringify(
+            error.response.data
+          )
         );
       } else {
         setError(
@@ -314,35 +448,47 @@ export default function CreateDealsDrawer({
     }
   };
 
+  // =================================================
   // LEAD OPTIONS
+  // =================================================
 
-  const leadOptions = leads.map((lead) => ({
-    value: String(lead.id),
+  const leadOptions =
+    leads.map((lead) => ({
+      value: String(
+        lead.id
+      ),
 
-    label:
-      `${lead.first_name || ""} ${
-        lead.last_name || ""
-      }`.trim() ||
-      lead.name ||
-      lead.email ||
-      `Lead ${lead.id}`,
-  }));
+      label:
+        `${lead.first_name || ""} ${
+          lead.last_name || ""
+        }`.trim() ||
+        lead.name ||
+        lead.email ||
+        `Lead ${lead.id}`,
+    }));
 
+  // =================================================
   // USER OPTIONS
+  // =================================================
 
-  const userOptions = users.map((user) => ({
-    value: String(user.id),
+  const userOptions =
+    users.map((user) => ({
+      value: String(
+        user.id
+      ),
 
-    label:
-      `${user.first_name || ""} ${
-        user.last_name || ""
-      }`.trim() ||
-      user.username ||
-      user.email ||
-      `User ${user.id}`,
-  }));
+      label:
+        `${user.first_name || ""} ${
+          user.last_name || ""
+        }`.trim() ||
+        user.username ||
+        user.email ||
+        `User ${user.id}`,
+    }));
 
+  // =================================================
   // UI
+  // =================================================
 
   return (
     <Drawer
@@ -352,7 +498,9 @@ export default function CreateDealsDrawer({
     >
       <Box
         component="form"
-        onSubmit={handleSubmit}
+        onSubmit={
+          handleSubmit
+        }
         sx={{
           width: 520,
           height: "100%",
@@ -395,7 +543,8 @@ export default function CreateDealsDrawer({
               sx={{
                 color: "red",
                 fontSize: "14px",
-                wordBreak: "break-word",
+                wordBreak:
+                  "break-word",
               }}
             >
               {error}
@@ -408,8 +557,12 @@ export default function CreateDealsDrawer({
             label="Deal Name"
             required
             name="dealName"
-            value={formData.dealName}
-            onChange={handleChange}
+            value={
+              formData.dealName
+            }
+            onChange={
+              handleChange
+            }
             fullWidth
             placeholder="Enter"
           />
@@ -430,8 +583,12 @@ export default function CreateDealsDrawer({
               "Qualified to Buy",
             ]}
             name="dealStage"
-            value={formData.dealStage}
-            onChange={handleChange}
+            value={
+              formData.dealStage
+            }
+            onChange={
+              handleChange
+            }
           />
 
           {/* ASSOCIATED LEAD */}
@@ -444,10 +601,16 @@ export default function CreateDealsDrawer({
                 ? "Choose"
                 : "No leads available"
             }
-            options={leadOptions}
+            options={
+              leadOptions
+            }
             name="associatedLead"
-            value={formData.associatedLead}
-            onChange={handleChange}
+            value={
+              formData.associatedLead
+            }
+            onChange={
+              handleChange
+            }
           />
 
           {/* AMOUNT */}
@@ -456,15 +619,19 @@ export default function CreateDealsDrawer({
             label="Amount"
             required
             name="amount"
-            value={formData.amount}
-            onChange={handleChange}
+            value={
+              formData.amount
+            }
+            onChange={
+              handleChange
+            }
             fullWidth
             placeholder="Enter"
           />
 
           {/* DEAL OWNER */}
 
-          <CommonSelect
+          <CommonMultiSelect
             label="Deal Owner"
             required
             placeholder={
@@ -472,15 +639,24 @@ export default function CreateDealsDrawer({
                 ? "Choose"
                 : "No users available"
             }
-            options={userOptions}
+            options={
+              userOptions
+            }
             name="dealOwner"
-            value={formData.dealOwner}
-            onChange={handleChange}
+            value={
+              formData.dealOwner
+            }
+            onChange={
+              handleChange
+            }
           />
 
           {/* CLOSE DATE + PRIORITY */}
 
-          <Grid container spacing={2}>
+          <Grid
+            container
+            spacing={2}
+          >
             <Grid
               size={{
                 xs: 12,
@@ -490,12 +666,19 @@ export default function CreateDealsDrawer({
               <FormDatePicker
                 label="Close Date"
                 required
-                value={formData.closeDate}
-                onChange={(newValue) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    closeDate: newValue,
-                  }))
+                value={
+                  formData.closeDate
+                }
+                onChange={(
+                  newValue
+                ) =>
+                  setFormData(
+                    (prev) => ({
+                      ...prev,
+                      closeDate:
+                        newValue,
+                    })
+                  )
                 }
               />
             </Grid>
@@ -511,8 +694,12 @@ export default function CreateDealsDrawer({
                 required
                 placeholder="Choose"
                 name="priority"
-                value={formData.priority}
-                onChange={handleChange}
+                value={
+                  formData.priority
+                }
+                onChange={
+                  handleChange
+                }
                 options={[
                   "High",
                   "Medium",
@@ -532,7 +719,8 @@ export default function CreateDealsDrawer({
             display: "flex",
             gap: 3,
             p: 3,
-            borderTop: "1px solid #E5E7EB",
+            borderTop:
+              "1px solid #E5E7EB",
           }}
         >
           {/* CANCEL */}
