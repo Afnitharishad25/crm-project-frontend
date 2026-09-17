@@ -1,11 +1,5 @@
-
-
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Typography,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 import { useParams } from "react-router-dom";
 
 import CommonActivityTabs from "../../../../../Components/common/CommonActivityTab";
@@ -15,7 +9,7 @@ import CompanyActivityCard from "./CompanyActivityCard";
 import api from "../../../../../services/api";
 
 export default function CompanyActivityDetails() {
- const { companyId } = useParams();
+  const { companyId } = useParams();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,58 +17,51 @@ export default function CompanyActivityDetails() {
   // COMPANY TABS
   // =====================================================
 
- const companyTabs = getCompanyTabs(companyId);
+  const companyTabs = getCompanyTabs(companyId);
 
   // =====================================================
   // FETCH COMPANY ACTIVITIES
   // =====================================================
-      useEffect(() => {
-  const fetchActivities = async () => {
-    if (!companyId) {
-      setActivities([]);
-      setLoading(false);
-      return;
-    }
+  useEffect(() => {
+    const fetchActivities = async () => {
+      if (!companyId) {
+        setActivities([]);
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setLoading(true);
+      try {
+        setLoading(true);
 
-      console.log(
-        "FETCHING COMPANY ACTIVITIES FOR COMPANY:",
-        companyId
-      );
+        console.log("FETCHING COMPANY ACTIVITIES FOR COMPANY:", companyId);
 
-      const response = await api.get(
-        `/activities/activity/company/${companyId}/`
-      );
+        const response = await api.get(
+          `/activities/activity/company/${companyId}/`,
+        );
 
-      console.log(
-        "COMPANY ACTIVITY RESPONSE:",
-        response.data
-      );
+        console.log("COMPANY ACTIVITY RESPONSE:", response.data);
 
-      const activityData = Array.isArray(response.data)
-        ? response.data
-        : response.data?.results || [];
+        const activityData = Array.isArray(response.data)
+          ? response.data
+          : response.data?.results || [];
 
-      setActivities(activityData);
-    } catch (error) {
-      console.error(
-        "FETCH COMPANY ACTIVITIES ERROR:",
-        error.response?.data || error
-      );
+        setActivities(activityData);
+      } catch (error) {
+        console.error(
+          "FETCH COMPANY ACTIVITIES ERROR:",
+          error.response?.data || error,
+        );
 
-      setActivities([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        setActivities([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchActivities();
-}, [companyId]);
- 
+    fetchActivities();
+  }, [companyId]);
 
-  // 
+  //
 
   // =====================================================
   // FORMAT DATE
@@ -148,11 +135,7 @@ export default function CompanyActivityDetails() {
         return activity.created_by;
       }
 
-      return (
-        activity.created_by.name ||
-        activity.created_by.email ||
-        "Unknown"
-      );
+      return activity.created_by.name || activity.created_by.email || "Unknown";
     }
 
     return "Unknown";
@@ -170,10 +153,7 @@ export default function CompanyActivityDetails() {
     // NOTE
     // ===================================================
 
-    if (
-      activity.activity_type === "note" &&
-      data
-    ) {
+    if (activity.activity_type === "note" && data) {
       return (
         <>
           <Typography sx={{ fontSize: 14 }}>
@@ -186,7 +166,6 @@ export default function CompanyActivityDetails() {
             >
               {createdBy}
             </Box>{" "}
-
             <Box
               component="span"
               sx={{
@@ -216,10 +195,7 @@ export default function CompanyActivityDetails() {
     // CALL
     // ===================================================
 
-    if (
-      activity.activity_type === "call" &&
-      data
-    ) {
+    if (activity.activity_type === "call" && data) {
       return (
         <>
           <Typography sx={{ fontSize: 14 }}>
@@ -232,7 +208,6 @@ export default function CompanyActivityDetails() {
             >
               {createdBy}
             </Box>{" "}
-
             <Box
               component="span"
               sx={{
@@ -274,10 +249,7 @@ export default function CompanyActivityDetails() {
     // TASK
     // ===================================================
 
-    if (
-      activity.activity_type === "task" &&
-      data
-    ) {
+    if (activity.activity_type === "task" && data) {
       return (
         <>
           <Typography sx={{ fontSize: 14 }}>
@@ -290,7 +262,6 @@ export default function CompanyActivityDetails() {
             >
               {createdBy}
             </Box>{" "}
-
             <Box
               component="span"
               sx={{
@@ -320,62 +291,55 @@ export default function CompanyActivityDetails() {
     // MEETING
     // ===================================================
 
-   // ===================================================
-// MEETING
-// ===================================================
+    // ===================================================
+    // MEETING
+    // ===================================================
 
-if (
-  activity.activity_type === "meeting" &&
-  data
-) {
-  return (
-    <>
-      {/* USER WHO CREATED THE MEETING */}
-      <Typography sx={{ fontSize: 14 }}>
-        <Box
-          component="span"
-          sx={{
-            color: "text.secondary",
-            fontWeight: 600,
-          }}
-        >
-          {createdBy}
-        </Box>{" "}
+    if (activity.activity_type === "meeting" && data) {
+      return (
+        <>
+          {/* USER WHO CREATED THE MEETING */}
+          <Typography sx={{ fontSize: 14 }}>
+            <Box
+              component="span"
+              sx={{
+                color: "text.secondary",
+                fontWeight: 600,
+              }}
+            >
+              {createdBy}
+            </Box>{" "}
+            <Box
+              component="span"
+              sx={{
+                color: "text.secondary",
+              }}
+            >
+              created a meeting
+            </Box>
+          </Typography>
 
-        <Box
-          component="span"
-          sx={{
-            color: "text.secondary",
-          }}
-        >
-          created a meeting
-        </Box>
-      </Typography>
-
-      {/* MEETING NOTE */}
-      {data.note && (
-        <Typography
-          sx={{
-            mt: 1,
-            fontSize: 14,
-            color: "text.secondary",
-          }}
-        >
-          {data.note}
-        </Typography>
-      )}
-    </>
-  );
-}
+          {/* MEETING NOTE */}
+          {data.note && (
+            <Typography
+              sx={{
+                mt: 1,
+                fontSize: 14,
+                color: "text.secondary",
+              }}
+            >
+              {data.note}
+            </Typography>
+          )}
+        </>
+      );
+    }
 
     // ===================================================
     // EMAIL
     // ===================================================
 
-    if (
-      activity.activity_type === "email" &&
-      data
-    ) {
+    if (activity.activity_type === "email" && data) {
       return (
         <>
           <Typography sx={{ fontSize: 14 }}>
@@ -388,7 +352,6 @@ if (
             >
               {createdBy}
             </Box>{" "}
-
             <Box
               component="span"
               sx={{
@@ -443,16 +406,12 @@ if (
         mx: -2,
       }}
     >
-
       {/* =================================================
           TABS
       ================================================= */}
 
       <Box>
-        <CommonActivityTabs
-          tabs={companyTabs}
-          activeTab="Activity"
-        />
+        <CommonActivityTabs tabs={companyTabs} activeTab="Activity" />
       </Box>
 
       {/* =================================================
@@ -474,7 +433,7 @@ if (
           COMPANY companyId NOT FOUND
       ================================================= */}
 
-      {!companyId&& (
+      {!companyId && (
         <Typography
           sx={{
             fontSize: 14,
@@ -505,18 +464,16 @@ if (
           NO ACTIVITIES
       ================================================= */}
 
-      {companyId &&
-        !loading &&
-        activities.length === 0 && (
-          <Typography
-            sx={{
-              fontSize: 14,
-              color: "text.secondary",
-            }}
-          >
-            No activities found.
-          </Typography>
-        )}
+      {companyId && !loading && activities.length === 0 && (
+        <Typography
+          sx={{
+            fontSize: 14,
+            color: "text.secondary",
+          }}
+        >
+          No activities found.
+        </Typography>
+      )}
 
       {/* =================================================
           ACTIVITIES
@@ -526,39 +483,19 @@ if (
         !loading &&
         activities.length > 0 &&
         activities.map((activity) => (
-
-          // <CompanyActivityCard
-          //   key={activity.companyId}
-          //   title={
-          //     activity.activity_type
-          //       ? activity.activity_type
-          //           .charAt(0)
-          //           .toUpperCase() +
-          //         activity.activity_type.slice(1)
-          //       : "Activity"
-          //   }
-          //   date={formatDate(
-          //     activity.created_at
-          //   )}
-          // >
-          //   {renderActivity(activity)}
-          // </CompanyActivityCard>
           <CompanyActivityCard
-  key={activity.id}
-  title={
-    activity.activity_type
-      ? activity.activity_type.charAt(0).toUpperCase() +
-        activity.activity_type.slice(1)
-      : "Activity"
-  }
-  date={formatDate(activity.created_at)}
->
-  {renderActivity(activity)}
-</CompanyActivityCard>
-
+            key={activity.id}
+            title={
+              activity.activity_type
+                ? activity.activity_type.charAt(0).toUpperCase() +
+                  activity.activity_type.slice(1)
+                : "Activity"
+            }
+            date={formatDate(activity.created_at)}
+          >
+            {renderActivity(activity)}
+          </CompanyActivityCard>
         ))}
     </Box>
   );
 }
-
-
