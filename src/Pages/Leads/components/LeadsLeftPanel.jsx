@@ -266,15 +266,16 @@ export default function LeadsLeftPanel({
   // ============================================================
 
   const handleConvert = () => {
-    /*
-      Your existing convert flow currently navigates
-      to the deals list.
+    console.log("Converting Lead:", {
+      id: leadId,
+      name: leadName,
+    });
 
-      If later you create a dedicated conversion page,
-      change this route here.
-    */
-
-    navigate("/dealslist");
+    navigate("/dealslist", {
+      state: {
+        convertLeadId: leadId,
+      },
+    });
   };
 
   // ============================================================
@@ -383,4 +384,5 @@ export default function LeadsLeftPanel({
     </>
   );
 }
+
 
