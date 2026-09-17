@@ -3,7 +3,6 @@ import { Grid, Card, CardContent, Typography, Box } from "@mui/material";
 import PeopleAltOutlinedIcon from "@mui/icons-material/PeopleAltOutlined";
 import BusinessCenterOutlinedIcon from "@mui/icons-material/BusinessCenterOutlined";
 import AttachMoneyOutlinedIcon from "@mui/icons-material/AttachMoneyOutlined";
-
 import api from "../../../services/api";
 
 const StatsCards = () => {

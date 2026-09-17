@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Typography, LinearProgress } from "@mui/material";
-
 import api from "../../../services/api";
+
 
 const ConversionFunnel = () => {
   const [conversion, setConversion] = useState({

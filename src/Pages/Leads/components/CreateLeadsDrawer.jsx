@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from "react";
 import { Drawer, Box } from "@mui/material";
 
@@ -13,7 +10,6 @@ import CommonMultiSelect from "../../../Components/common/CommonMultiSelect";
 
 import api from "../../../services/api";
 
-
 import {
   createLead,
   updateLead,
@@ -24,7 +20,7 @@ export default function CreateLeadsDrawer({
   open,
   onClose,
   onSuccess,
-   selectedLead,
+  selectedLead,
 }) {
   // =====================================================
   // EMPTY FORM
@@ -58,39 +54,42 @@ export default function CreateLeadsDrawer({
   // Lead statuses
   const [leadStatuses, setLeadStatuses] = useState([]);
 
+  // Companies
+  const [companies, setCompanies] = useState([]);
+
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState("");
-
-  const [companies, setCompanies] = useState([]);
 
   // =====================================================
   // FETCH USERS
   // =====================================================
 
   const fetchUsers = async () => {
-  try {
-    const response = await api.get("/accounts/users/");
+    try {
+      const response = await api.get("/accounts/users/");
 
-    console.log("Users:", response.data);
+      console.log("Users:", response.data);
 
-    const userOptions = response.data.map((user) => {
-      const fullName =
-        `${user.first_name || ""} ${user.last_name || ""}`.trim();
+      const userOptions = response.data.map((user) => {
+        const fullName =
+          `${user.first_name || ""} ${user.last_name || ""}`.trim();
 
-      return {
-        value: String(user.id),
-        label: fullName || user.email,
-        company: user.company_name || "",
-      };
-    });
+        return {
+          value: String(user.id),
+          label: fullName || user.email,
+          company: user.company_name || "",
+        };
+      });
 
-    setUsers(userOptions);
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    setError("Failed to load contact owners.");
-  }
-};
+      setUsers(userOptions);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+
+      setError("Failed to load contact owners.");
+    }
+  };
+
   // =====================================================
   // FETCH LEAD STATUSES
   // =====================================================
@@ -100,22 +99,6 @@ export default function CreateLeadsDrawer({
       const response = await api.get("/leads/lead-statuses/");
 
       console.log("Lead Statuses:", response.data);
-
-      /*
-        If backend returns:
-
-        [
-          { id: 1, name: "New" },
-          { id: 2, name: "Open" }
-        ]
-
-        convert to:
-
-        [
-          { value: "New", label: "New" },
-          { value: "Open", label: "Open" }
-        ]
-      */
 
       const statusOptions = response.data.map((status) => {
         if (typeof status === "string") {
@@ -143,49 +126,49 @@ export default function CreateLeadsDrawer({
   // FETCH PRODUCTS
   // =====================================================
 
-const fetchProducts = async () => {
-  try {
-    const response = await api.get("/leads/products/");
+  const fetchProducts = async () => {
+    try {
+      const response = await api.get("/leads/products/");
 
-    console.log("Products from backend:", response.data);
+      console.log("Products from backend:", response.data);
 
-    // Backend already returns { value, label }
-    setProducts(response.data);
+      setProducts(response.data);
 
-    console.log("Product options:", response.data);
-  } catch (error) {
-    console.error(
-      "Error fetching products:",
-      error.response?.data || error.message
-    );
+      console.log("Product options:", response.data);
+    } catch (error) {
+      console.error(
+        "Error fetching products:",
+        error.response?.data || error.message
+      );
 
-    console.error("Status:", error.response?.status);
+      console.error("Status:", error.response?.status);
 
-    setError("Failed to load products.");
-  }
-};
+      setError("Failed to load products.");
+    }
+  };
 
-//==================================================================
-//FETCH COMPANY
-//=================================================================
-const fetchCompanies = async () => {
-  try {
-    const response = await api.get("/leads/companies/");
+  // =====================================================
+  // FETCH COMPANIES
+  // =====================================================
 
-    console.log("Companies from backend:", response.data);
+  const fetchCompanies = async () => {
+    try {
+      const response = await api.get("/leads/companies/");
 
-    setCompanies(response.data);
+      console.log("Companies from backend:", response.data);
 
-    console.log("Company options:", response.data);
-  } catch (error) {
-    console.error(
-      "Error fetching companies:",
-      error.response?.data || error.message
-    );
+      setCompanies(response.data);
 
-    setError("Failed to load companies.");
-  }
-};
+      console.log("Company options:", response.data);
+    } catch (error) {
+      console.error(
+        "Error fetching companies:",
+        error.response?.data || error.message
+      );
+
+      setError("Failed to load companies.");
+    }
+  };
 
   // =====================================================
   // LOAD DATA WHEN DRAWER OPENS
@@ -200,57 +183,69 @@ const fetchCompanies = async () => {
     }
   }, [open]);
 
+  // =====================================================
+  // LOAD SELECTED LEAD FOR EDIT
+  // =====================================================
 
   useEffect(() => {
-  const loadLead = async () => {
-    if (!selectedLead) {
-      setFormData(emptyForm);
-      return;
+    const loadLead = async () => {
+      if (!selectedLead) {
+        setFormData(emptyForm);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError("");
+
+        const response = await getLeadById(selectedLead.id);
+
+        const lead = response.data;
+
+        setFormData({
+          email: lead.email || "",
+          firstName: lead.first_name || "",
+          lastName: lead.last_name || "",
+
+          // Keep the complete phone number.
+          // PhoneInputField will separate the country code
+          // from the local number automatically.
+          phoneNumber: lead.phone_number || "",
+
+          jobTitle: lead.job_title || "",
+
+          contactOwner: lead.contact_owner
+            ? String(lead.contact_owner)
+            : "",
+
+          leadStatus: lead.lead_status || "",
+
+          products: lead.products
+            ? lead.products.map((id) => String(id))
+            : [],
+
+          company: lead.company
+            ? String(lead.company)
+            : "",
+
+          city: lead.city || "",
+        });
+      } catch (error) {
+        console.error(
+          "Error loading lead:",
+          error.response?.data || error.message
+        );
+
+        setError("Failed to load lead details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (open) {
+      loadLead();
     }
-
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await getLeadById(selectedLead.id);
-
-      const lead = response.data;
-
-      setFormData({
-        email: lead.email || "",
-        firstName: lead.first_name || "",
-        lastName: lead.last_name || "",
-        phoneNumber: lead.phone_number || "",
-        jobTitle: lead.job_title || "",
-        contactOwner: lead.contact_owner
-          ? String(lead.contact_owner)
-          : "",
-        leadStatus: lead.lead_status || "",
-        products: lead.products
-          ? lead.products.map((id) => String(id))
-          : [],
-        company: lead.company
-          ? String(lead.company)
-          : "",
-        city: lead.city || "",
-      });
-
-    } catch (error) {
-      console.error(
-        "Error loading lead:",
-        error.response?.data || error.message
-      );
-
-      setError("Failed to load lead details.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (open) {
-    loadLead();
-  }
-}, [open, selectedLead]);
+  }, [open, selectedLead]);
 
   // =====================================================
   // PHONE NUMBER VALIDATION
@@ -261,10 +256,76 @@ const fetchCompanies = async () => {
       return "Phone number is required.";
     }
 
-    const digitsOnly = phone.replace(/\D/g, "");
+    const phoneString = String(phone).trim();
 
-    if (digitsOnly.length !== 10) {
-      return "Phone number must contain exactly 10 digits.";
+    // ---------------------------------------------------
+    // UAE
+    // +971 + 9 local digits
+    // Example: +971553074371
+    // ---------------------------------------------------
+
+    if (phoneString.startsWith("+971")) {
+      const localNumber = phoneString
+        .substring(4)
+        .replace(/\D/g, "");
+
+      if (localNumber.length !== 9) {
+        return "UAE phone number must contain exactly 9 digits.";
+      }
+
+      return "";
+    }
+
+    // ---------------------------------------------------
+    // INDIA
+    // +91 + 10 local digits
+    // Example: +919876543210
+    // ---------------------------------------------------
+
+    if (phoneString.startsWith("+91")) {
+      const localNumber = phoneString
+        .substring(3)
+        .replace(/\D/g, "");
+
+      if (localNumber.length !== 10) {
+        return "India phone number must contain exactly 10 digits.";
+      }
+
+      return "";
+    }
+
+    // ---------------------------------------------------
+    // USA
+    // +1 + 10 local digits
+    // ---------------------------------------------------
+
+    if (phoneString.startsWith("+1")) {
+      const localNumber = phoneString
+        .substring(2)
+        .replace(/\D/g, "");
+
+      if (localNumber.length !== 10) {
+        return "US phone number must contain exactly 10 digits.";
+      }
+
+      return "";
+    }
+
+    // ---------------------------------------------------
+    // UK
+    // +44 + 10 local digits
+    // ---------------------------------------------------
+
+    if (phoneString.startsWith("+44")) {
+      const localNumber = phoneString
+        .substring(3)
+        .replace(/\D/g, "");
+
+      if (localNumber.length !== 10) {
+        return "UK phone number must contain exactly 10 digits.";
+      }
+
+      return "";
     }
 
     return "";
@@ -276,56 +337,46 @@ const fetchCompanies = async () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
- // -----------------------------------------------------
-    // contact owners correspomding company
-    // -----------------------------------------------------
 
+    // ---------------------------------------------------
+    // CONTACT OWNER
+    // ---------------------------------------------------
 
-      if (name === "contactOwner") {
-    const selectedUser = users.find(
-      (user) => String(user.value) === String(value)
-    );
+    if (name === "contactOwner") {
+      const selectedUser = users.find(
+        (user) => String(user.value) === String(value)
+      );
 
-    setFormData((prev) => ({
-      ...prev,
-      contactOwner: value,
-      company: selectedUser?.company || "",
-    }));
+      setFormData((prev) => ({
+        ...prev,
+        contactOwner: value,
+        company: selectedUser?.company || "",
+      }));
 
-    return;
-  }
-
-
-    // -----------------------------------------------------
-    // PHONE NUMBER
-    // -----------------------------------------------------
-
-    if (name === "phoneNumber") {
-      const digitsOnly = value.replace(/\D/g, "");
-
-      if (digitsOnly.length > 10) {
-        return;
-      }
+      return;
     }
 
-    // -----------------------------------------------------
+    // ---------------------------------------------------
     // PRODUCTS
-    // -----------------------------------------------------
+    // ---------------------------------------------------
 
     if (name === "products") {
       console.log("Selected product IDs:", value);
     }
 
-    // -----------------------------------------------------
+    // ---------------------------------------------------
     // UPDATE FORM
-    // -----------------------------------------------------
+    // ---------------------------------------------------
 
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
 
-    // Clear error
+    // ---------------------------------------------------
+    // CLEAR ERROR
+    // ---------------------------------------------------
+
     if (error) {
       setError("");
     }
@@ -338,9 +389,9 @@ const fetchCompanies = async () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // -----------------------------------------------------
+    // ---------------------------------------------------
     // PHONE VALIDATION
-    // -----------------------------------------------------
+    // ---------------------------------------------------
 
     const phoneError = validatePhoneNumber(
       formData.phoneNumber
@@ -351,9 +402,9 @@ const fetchCompanies = async () => {
       return;
     }
 
-    // -----------------------------------------------------
+    // ---------------------------------------------------
     // CONTACT OWNER VALIDATION
-    // -----------------------------------------------------
+    // ---------------------------------------------------
 
     if (!formData.contactOwner) {
       setError("Please select a contact owner.");
@@ -369,60 +420,57 @@ const fetchCompanies = async () => {
       // =================================================
 
       const payload = {
-  email: formData.email,
-  first_name: formData.firstName,
-  last_name: formData.lastName,
-  phone_number: formData.phoneNumber,
-  job_title: formData.jobTitle,
-  contact_owner: formData.contactOwner
-    ? Number(formData.contactOwner)
-    : null,
-  lead_status: formData.leadStatus || "New",
-  products: formData.products.map((id) => Number(id)),
-  company: formData.company
-    ? Number(formData.company)
-    : null,
-  city: formData.city,
-};
+        email: formData.email,
+
+        first_name: formData.firstName,
+
+        last_name: formData.lastName,
+
+        // Complete number from PhoneInputField.
+        // Example:
+        // UAE  -> +971553074371
+        // India -> +919876543210
+        phone_number: formData.phoneNumber,
+
+        job_title: formData.jobTitle,
+
+        contact_owner: formData.contactOwner
+          ? Number(formData.contactOwner)
+          : null,
+
+        lead_status: formData.leadStatus || "New",
+
+        products: formData.products.map((id) =>
+          Number(id)
+        ),
+
+        company: formData.company
+          ? Number(formData.company)
+          : null,
+
+        city: formData.city,
+      };
+
       console.log("Sending Lead:", payload);
 
-      /*
-        Example payload:
-
-        {
-          email: "john@gmail.com",
-          first_name: "John",
-          last_name: "Smith",
-          phone_number: "9876543210",
-          job_title: "Manager",
-          contact_owner: 4,
-          lead_status: "New",
-          products: [1, 3],
-          company: "ABC Technologies",
-          city: "Dubai"
-        }
-      */
-
       // =================================================
-      // CREATE LEAD
+      // CREATE / UPDATE
       // =================================================
 
-    let response;
+      let response;
 
-if (selectedLead) {
-  response = await updateLead(
-    selectedLead.id,
-    payload
-  );
+      if (selectedLead) {
+        response = await updateLead(
+          selectedLead.id,
+          payload
+        );
 
-  console.log("Lead updated:", response.data);
-} else {
-  response = await createLead(payload);
+        console.log("Lead updated:", response.data);
+      } else {
+        response = await createLead(payload);
 
-  console.log("Lead created:", response.data);
-}
-
-      
+        console.log("Lead created:", response.data);
+      }
 
       // =================================================
       // REFRESH LEAD LIST
@@ -445,7 +493,7 @@ if (selectedLead) {
       onClose();
     } catch (error) {
       console.error(
-        "Error creating lead:",
+        "Error creating/updating lead:",
         error.response?.data || error.message
       );
 
@@ -454,7 +502,7 @@ if (selectedLead) {
           JSON.stringify(error.response.data)
         );
       } else {
-        setError("Failed to create lead.");
+        setError("Failed to save lead.");
       }
     } finally {
       setLoading(false);
@@ -486,15 +534,14 @@ if (selectedLead) {
             HEADER
         ================================================= */}
 
-        {/* <DrawerHeader
-          title="Create Lead"
-          onClose={onClose}
-        /> */}
-
         <DrawerHeader
-  title={selectedLead ? "Edit Lead" : "Create Lead"}
-  onClose={onClose}
-/>
+          title={
+            selectedLead
+              ? "Edit Lead"
+              : "Create Lead"
+          }
+          onClose={onClose}
+        />
 
         {/* =================================================
             FORM
@@ -638,24 +685,24 @@ if (selectedLead) {
               COMPANY
           ================================================= */}
 
-         <CommonSelect
-  label="Company"
-  name="company"
-  value={formData.company}
-  onChange={handleChange}
-  placeholder="Select Contact Owner First"
-  options={
-    formData.company
-      ? [
-          {
-            value: formData.company,
-            label: formData.company,
-          },
-        ]
-      : []
-  }
-  disabled
-/>
+          <CommonSelect
+            label="Company"
+            name="company"
+            value={formData.company}
+            onChange={handleChange}
+            placeholder="Select Contact Owner First"
+            options={
+              formData.company
+                ? [
+                    {
+                      value: formData.company,
+                      label: formData.company,
+                    },
+                  ]
+                : []
+            }
+            disabled
+          />
 
           {/* =================================================
               CITY
@@ -683,7 +730,9 @@ if (selectedLead) {
             borderTop: "1px solid #E5E7EB",
           }}
         >
-          {/* CANCEL */}
+          {/* =================================================
+              CANCEL
+          ================================================= */}
 
           <CommonButton
             variant="outlined"
@@ -694,7 +743,9 @@ if (selectedLead) {
             Cancel
           </CommonButton>
 
-          {/* SAVE */}
+          {/* =================================================
+              SAVE
+          ================================================= */}
 
           <CommonButton
             type="submit"
@@ -702,15 +753,14 @@ if (selectedLead) {
             disabled={loading}
           >
             {loading
-  ? "Saving..."
-  : selectedLead
-  ? "Update Lead"
-  : "Save Lead"}
+              ? "Saving..."
+              : selectedLead
+              ? "Update Lead"
+              : "Save Lead"}
           </CommonButton>
         </Box>
       </Box>
     </Drawer>
   );
 }
-
 
