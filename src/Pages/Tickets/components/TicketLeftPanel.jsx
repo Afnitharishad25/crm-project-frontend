@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Outlet } from "react-router-dom";
 
 import CommonEntityHeader from "../../../Components/common/CommonEntityHeader";
 
@@ -11,18 +11,16 @@ import CreateTaskDrawer from "../../Leads/components/Tabs/Task/CreateTaskDrawer"
 
 import api from "../../../services/api";
 
-export default function TicketLeftPanel({
-  children,
-  onCallCreated,
-  onNoteCreated,
-  onEmailCreated,
-  onTaskCreated,
-}) {
+export default function TicketLeftPanel() {
   const { ticketId } = useParams();
 
   const [ticket, setTicket] = useState(null);
   const [status, setStatus] = useState("");
   const [activeDrawer, setActiveDrawer] = useState(null);
+
+  // Used to tell the current tab to refresh after
+  // creating a call/note/email/task/meeting
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // =========================================================
   // FETCH TICKET DETAILS
@@ -53,7 +51,7 @@ export default function TicketLeftPanel({
       } catch (error) {
         console.error(
           "Fetch Ticket Details Error:",
-          error.response?.data || error
+          error.response?.data || error,
         );
       }
     };
@@ -106,7 +104,7 @@ export default function TicketLeftPanel({
     } catch (error) {
       console.error(
         "Ticket Status Update Error:",
-        error.response?.data || error
+        error.response?.data || error,
       );
     }
   };
@@ -134,17 +132,13 @@ export default function TicketLeftPanel({
   // =========================================================
 
   const ownerName =
-    Array.isArray(ticket.ticket_owners) &&
-    ticket.ticket_owners.length > 0
+    Array.isArray(ticket.ticket_owners) && ticket.ticket_owners.length > 0
       ? ticket.ticket_owners.join(", ")
       : "-";
 
   const priority = ticket.priority || "-";
 
-  const createdDate =
-    ticket.created_date ||
-    ticket.created_at ||
-    "-";
+  const createdDate = ticket.created_date || ticket.created_at || "-";
 
   // =========================================================
   // ABOUT TICKET DETAILS
@@ -177,6 +171,15 @@ export default function TicketLeftPanel({
     setActiveDrawer(null);
   };
 
+  // ============================================================
+  // REFRESH CURRENT TAB
+  // ============================================================
+
+  const refreshCurrentTab = () => {
+    setActiveDrawer(null);
+
+    setRefreshKey((prev) => prev + 1);
+  };
   // =========================================================
   // CALL CREATED
   // =========================================================
@@ -184,11 +187,7 @@ export default function TicketLeftPanel({
   const handleCallCreated = async (createdCall) => {
     console.log("Ticket call created:", createdCall);
 
-    setActiveDrawer(null);
-
-    if (onCallCreated) {
-      await onCallCreated(createdCall);
-    }
+    refreshCurrentTab();
   };
 
   // =========================================================
@@ -198,11 +197,7 @@ export default function TicketLeftPanel({
   const handleNoteCreated = async (createdNote) => {
     console.log("Ticket note created:", createdNote);
 
-    setActiveDrawer(null);
-
-    if (onNoteCreated) {
-      await onNoteCreated(createdNote);
-    }
+    refreshCurrentTab();
   };
 
   // =========================================================
@@ -212,11 +207,7 @@ export default function TicketLeftPanel({
   const handleEmailCreated = async (createdEmail) => {
     console.log("Ticket email created:", createdEmail);
 
-    setActiveDrawer(null);
-
-    if (onEmailCreated) {
-      await onEmailCreated(createdEmail);
-    }
+    refreshCurrentTab();
   };
 
   // =========================================================
@@ -226,11 +217,7 @@ export default function TicketLeftPanel({
   const handleTaskCreated = async (createdTask) => {
     console.log("Ticket task created:", createdTask);
 
-    setActiveDrawer(null);
-
-    if (onTaskCreated) {
-      await onTaskCreated(createdTask);
-    }
+    refreshCurrentTab();
   };
 
   // =========================================================
@@ -278,7 +265,11 @@ export default function TicketLeftPanel({
         onTaskClick={() => setActiveDrawer("task")}
         onMeetingClick={() => setActiveDrawer("meeting")}
       >
-        {children}
+        <Outlet
+          context={{
+            refreshKey,
+          }}
+        />
       </CommonEntityHeader>
 
       {/* =====================================================
