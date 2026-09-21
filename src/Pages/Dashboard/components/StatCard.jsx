@@ -57,7 +57,7 @@ const StatsCards = () => {
     },
     {
       label: "Monthly Revenue",
-      value: `$${Number(summary.monthly_revenue).toLocaleString()}`,
+      value: `${Number(summary.monthly_revenue).toLocaleString()}`,
       color: "#ece02d",
       icon: <AttachMoneyOutlinedIcon sx={{ fontSize: 28 }} />,
     },

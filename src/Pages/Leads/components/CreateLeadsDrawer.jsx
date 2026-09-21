@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Drawer, Box } from "@mui/material";
 
@@ -8,14 +7,11 @@ import CommonButton from "../../../Components/common/CommonButton";
 import PhoneInputField from "../../../Components/common/PhoneInputField";
 import CommonSelect from "../../../Components/common/CommonSelect";
 import CommonMultiSelect from "../../../Components/common/CommonMultiSelect";
+import { useToast } from "../../../Components/common/Toast";
 
 import api from "../../../services/api";
 
-import {
-  createLead,
-  updateLead,
-  getLeadById,
-} from "../../../services/leads";
+import { createLead, updateLead, getLeadById } from "../../../services/leads";
 
 export default function CreateLeadsDrawer({
   open,
@@ -23,6 +19,7 @@ export default function CreateLeadsDrawer({
   onSuccess,
   selectedLead,
 }) {
+  const { showToast } = useToast();
   // =====================================================
   // EMPTY FORM
   // =====================================================
@@ -139,7 +136,7 @@ export default function CreateLeadsDrawer({
     } catch (error) {
       console.error(
         "Error fetching products:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
 
       console.error("Status:", error.response?.status);
@@ -164,7 +161,7 @@ export default function CreateLeadsDrawer({
     } catch (error) {
       console.error(
         "Error fetching companies:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
 
       setError("Failed to load companies.");
@@ -215,17 +212,13 @@ export default function CreateLeadsDrawer({
         let selectedContactOwners = [];
 
         if (Array.isArray(lead.contact_owners)) {
-          selectedContactOwners = lead.contact_owners.map((id) =>
-            String(id)
-          );
+          selectedContactOwners = lead.contact_owners.map((id) => String(id));
         } else if (
           lead.contact_owner !== null &&
           lead.contact_owner !== undefined &&
           lead.contact_owner !== ""
         ) {
-          selectedContactOwners = [
-            String(lead.contact_owner),
-          ];
+          selectedContactOwners = [String(lead.contact_owner)];
         }
 
         setFormData({
@@ -251,8 +244,7 @@ export default function CreateLeadsDrawer({
             : [],
 
           company:
-            lead.company !== null &&
-            lead.company !== undefined
+            lead.company !== null && lead.company !== undefined
               ? String(lead.company)
               : "",
 
@@ -261,7 +253,7 @@ export default function CreateLeadsDrawer({
       } catch (error) {
         console.error(
           "Error loading lead:",
-          error.response?.data || error.message
+          error.response?.data || error.message,
         );
 
         setError("Failed to load lead details.");
@@ -293,9 +285,7 @@ export default function CreateLeadsDrawer({
     // ---------------------------------------------------
 
     if (phoneString.startsWith("+971")) {
-      const localNumber = phoneString
-        .substring(4)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(4).replace(/\D/g, "");
 
       if (localNumber.length !== 9) {
         return "UAE phone number must contain exactly 9 digits.";
@@ -311,9 +301,7 @@ export default function CreateLeadsDrawer({
     // ---------------------------------------------------
 
     if (phoneString.startsWith("+91")) {
-      const localNumber = phoneString
-        .substring(3)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(3).replace(/\D/g, "");
 
       if (localNumber.length !== 10) {
         return "India phone number must contain exactly 10 digits.";
@@ -328,9 +316,7 @@ export default function CreateLeadsDrawer({
     // ---------------------------------------------------
 
     if (phoneString.startsWith("+1")) {
-      const localNumber = phoneString
-        .substring(2)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(2).replace(/\D/g, "");
 
       if (localNumber.length !== 10) {
         return "US phone number must contain exactly 10 digits.";
@@ -345,9 +331,7 @@ export default function CreateLeadsDrawer({
     // ---------------------------------------------------
 
     if (phoneString.startsWith("+44")) {
-      const localNumber = phoneString
-        .substring(3)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(3).replace(/\D/g, "");
 
       if (localNumber.length !== 10) {
         return "UK phone number must contain exactly 10 digits.";
@@ -375,20 +359,14 @@ export default function CreateLeadsDrawer({
         ? value.map((id) => String(id))
         : [];
 
-      console.log(
-        "Selected Contact Owner IDs:",
-        selectedOwnerIds
-      );
+      console.log("Selected Contact Owner IDs:", selectedOwnerIds);
 
       // Find all selected users
       const selectedUsers = users.filter((user) =>
-        selectedOwnerIds.includes(String(user.value))
+        selectedOwnerIds.includes(String(user.value)),
       );
 
-      console.log(
-        "Selected Contact Owners:",
-        selectedUsers
-      );
+      console.log("Selected Contact Owners:", selectedUsers);
 
       // -------------------------------------------------
       // COMPANY
@@ -398,11 +376,7 @@ export default function CreateLeadsDrawer({
       // -------------------------------------------------
 
       const selectedCompanies = [
-        ...new Set(
-          selectedUsers
-            .map((user) => user.company)
-            .filter(Boolean)
-        ),
+        ...new Set(selectedUsers.map((user) => user.company).filter(Boolean)),
       ];
 
       setFormData((prev) => ({
@@ -457,9 +431,7 @@ export default function CreateLeadsDrawer({
     // PHONE VALIDATION
     // ---------------------------------------------------
 
-    const phoneError = validatePhoneNumber(
-      formData.phoneNumber
-    );
+    const phoneError = validatePhoneNumber(formData.phoneNumber);
 
     if (phoneError) {
       setError(phoneError);
@@ -511,13 +483,9 @@ export default function CreateLeadsDrawer({
 
         lead_status: formData.leadStatus || "New",
 
-        products: formData.products.map((id) =>
-          Number(id)
-        ),
+        products: formData.products.map((id) => Number(id)),
 
-        company: formData.company
-          ? Number(formData.company)
-          : null,
+        company: formData.company ? Number(formData.company) : null,
 
         city: formData.city,
       };
@@ -531,16 +499,24 @@ export default function CreateLeadsDrawer({
       let response;
 
       if (selectedLead) {
-        response = await updateLead(
-          selectedLead.id,
-          payload
-        );
+        // =================================================
+        // UPDATE LEAD
+        // =================================================
+
+        response = await updateLead(selectedLead.id, payload);
 
         console.log("Lead updated:", response.data);
+
+        showToast("Lead updated successfully", "success");
       } else {
+        // =================================================
+        // CREATE LEAD
+        // =================================================
+
         response = await createLead(payload);
 
         console.log("Lead created:", response.data);
+        showToast("Lead created successfully", "success");
       }
 
       // =================================================
@@ -569,16 +545,25 @@ export default function CreateLeadsDrawer({
     } catch (error) {
       console.error(
         "Error creating/updating lead:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
 
+      // if (error.response?.data) {
+      //   setError(JSON.stringify(error.response.data));
+      // } else {
+      //   setError("Failed to save lead.");
+      // }
+      const errorMessage = selectedLead
+        ? "Failed to update lead."
+        : "Failed to create lead.";
+
       if (error.response?.data) {
-        setError(
-          JSON.stringify(error.response.data)
-        );
+        setError(JSON.stringify(error.response.data));
       } else {
-        setError("Failed to save lead.");
+        setError(errorMessage);
       }
+
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -589,11 +574,7 @@ export default function CreateLeadsDrawer({
   // =====================================================
 
   return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-    >
+    <Drawer anchor="right" open={open} onClose={onClose}>
       <Box
         component="form"
         onSubmit={handleSubmit}
@@ -610,11 +591,7 @@ export default function CreateLeadsDrawer({
         ================================================= */}
 
         <DrawerHeader
-          title={
-            selectedLead
-              ? "Edit Lead"
-              : "Create Lead"
-          }
+          title={selectedLead ? "Edit Lead" : "Create Lead"}
           onClose={onClose}
         />
 
@@ -822,20 +799,11 @@ export default function CreateLeadsDrawer({
               SAVE
           ================================================= */}
 
-          <CommonButton
-            type="submit"
-            fullWidth
-            disabled={loading}
-          >
-            {loading
-              ? "Saving..."
-              : selectedLead
-              ? "Update Lead"
-              : "Save Lead"}
+          <CommonButton type="submit" fullWidth disabled={loading}>
+            {loading ? "Saving..." : selectedLead ? "Update Lead" : "Save Lead"}
           </CommonButton>
         </Box>
       </Box>
     </Drawer>
   );
 }
-
