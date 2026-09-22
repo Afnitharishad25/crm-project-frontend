@@ -7,6 +7,7 @@ import CommonButton from "../../../Components/common/CommonButton";
 import CommonSelect from "../../../Components/common/CommonSelect";
 import CommonMultiSelect from "../../../Components/common/CommonMultiSelect";
 import FormDatePicker from "../../../Components/common/FormDatePicker";
+import { useToast } from "../../../Components/common/Toast";
 import api from "../../../services/api";
 export default function CreateDealsDrawer({
   open,
@@ -15,6 +16,8 @@ export default function CreateDealsDrawer({
   deal,
   leadId,
 }) {
+  const { showToast } = useToast();
+
   // =================================================
   // EMPTY FORM
   // =================================================
@@ -217,6 +220,7 @@ export default function CreateDealsDrawer({
         console.log("Updating deal:", deal.id);
         const response = await api.put(`/deals/${deal.id}/`, dealData);
         console.log("DEAL UPDATED:", response.data);
+        showToast("Deal updated successfully", "success");
       }
       // =================================================
       // CREATE DEAL
@@ -225,6 +229,7 @@ export default function CreateDealsDrawer({
         console.log("Creating deal");
         const response = await api.post("/deals/", dealData);
         console.log("DEAL CREATED:", response.data);
+        showToast("Deal created successfully", "success");
       }
       // =================================================
       // REFRESH DEAL LIST
@@ -244,13 +249,24 @@ export default function CreateDealsDrawer({
       onClose();
     } catch (error) {
       console.error("SAVE DEAL ERROR:", error.response?.data || error);
-      if (error.response?.data) {
-        setError(JSON.stringify(error.response.data));
-      } else {
-        setError(
-          isEditMode ? "Failed to update deal." : "Failed to create deal.",
-        );
-      }
+      // if (error.response?.data) {
+      //   setError(JSON.stringify(error.response.data));
+      // } else {
+      //   setError(
+      //     isEditMode ? "Failed to update deal." : "Failed to create deal.",
+      //   );
+      // }
+      const errorMessage = isEditMode
+        ? "Failed to update deal."
+        : "Failed to create deal.";
+
+      setError(
+        error.response?.data
+          ? JSON.stringify(error.response.data)
+          : errorMessage,
+      );
+
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }

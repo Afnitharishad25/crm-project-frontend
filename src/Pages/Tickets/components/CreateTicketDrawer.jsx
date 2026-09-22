@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import {
   Drawer,
@@ -17,10 +16,12 @@ import {
 import DrawerHeader from "../../../Components/common/DrawerHeader";
 import CommonInput from "../../../Components/common/CommonInput";
 import CommonButton from "../../../Components/common/CommonButton";
+import { useToast } from "../../../Components/common/Toast";
 
 import api from "../../../services/api";
 
 export default function CreateTicketDrawer({ open, onClose }) {
+  const { showToast } = useToast();
   // =====================================================
   // FORM DATA
   // =====================================================
@@ -65,31 +66,20 @@ export default function CreateTicketDrawer({ open, onClose }) {
         setLoadingOptions(true);
         setError("");
 
-        const [usersResponse, dealsResponse] =
-          await Promise.all([
-            api.get("/accounts/users/"),
-            api.get("/deals/"),
-          ]);
+        const [usersResponse, dealsResponse] = await Promise.all([
+          api.get("/accounts/users/"),
+          api.get("/deals/"),
+        ]);
 
-        console.log(
-          "USERS RESPONSE:",
-          usersResponse.data
-        );
+        console.log("USERS RESPONSE:", usersResponse.data);
 
-        console.log(
-          "DEALS RESPONSE:",
-          dealsResponse.data
-        );
+        console.log("DEALS RESPONSE:", dealsResponse.data);
 
-        const usersData = Array.isArray(
-          usersResponse.data
-        )
+        const usersData = Array.isArray(usersResponse.data)
           ? usersResponse.data
           : usersResponse.data.results || [];
 
-        const dealsData = Array.isArray(
-          dealsResponse.data
-        )
+        const dealsData = Array.isArray(dealsResponse.data)
           ? dealsResponse.data
           : dealsResponse.data.results || [];
 
@@ -98,27 +88,20 @@ export default function CreateTicketDrawer({ open, onClose }) {
         // -------------------------------------------------
 
         const closedWonDeals = dealsData.filter(
-          (deal) =>
-            deal.deal_stage?.toLowerCase() ===
-            "closed won"
+          (deal) => deal.deal_stage?.toLowerCase() === "closed won",
         );
 
         setUsers(usersData);
         setDeals(closedWonDeals);
 
-        console.log(
-          "CLOSED WON DEALS:",
-          closedWonDeals
-        );
+        console.log("CLOSED WON DEALS:", closedWonDeals);
       } catch (err) {
         console.error(
           "Error loading ticket options:",
-          err.response?.data || err
+          err.response?.data || err,
         );
 
-        setError(
-          "Failed to load Ticket Owners or Deals."
-        );
+        setError("Failed to load Ticket Owners or Deals.");
       } finally {
         setLoadingOptions(false);
       }
@@ -165,9 +148,7 @@ export default function CreateTicketDrawer({ open, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    console.log(
-      "========== SAVE CLICKED =========="
-    );
+    console.log("========== SAVE CLICKED ==========");
 
     setError("");
 
@@ -184,9 +165,10 @@ export default function CreateTicketDrawer({ open, onClose }) {
       formData.ticketOwners.length === 0 ||
       !formData.associatedDeal
     ) {
-      setError(
-        "Please fill all required fields."
-      );
+      const message = "Please fill all required fields.";
+
+      setError(message);
+      showToast(message, "error");
 
       return;
     }
@@ -206,18 +188,12 @@ export default function CreateTicketDrawer({ open, onClose }) {
         priority: formData.priority,
 
         // MULTIPLE OWNER IDS
-        ticket_owners:
-          formData.ticketOwners.map(
-            (id) => Number(id)
-          ),
+        ticket_owners: formData.ticketOwners.map((id) => Number(id)),
 
-        associated_deal:
-          Number(formData.associatedDeal),
+        associated_deal: Number(formData.associatedDeal),
       };
 
-      console.log(
-        "========== CREATE TICKET PAYLOAD =========="
-      );
+      console.log("========== CREATE TICKET PAYLOAD ==========");
 
       console.log(payload);
 
@@ -225,16 +201,13 @@ export default function CreateTicketDrawer({ open, onClose }) {
       // POST REQUEST
       // ---------------------------------------------------
 
-      const response = await api.post(
-        "/tickets/",
-        payload
-      );
+      const response = await api.post("/tickets/", payload);
 
-      console.log(
-        "========== TICKET CREATED =========="
-      );
+      console.log("========== TICKET CREATED ==========");
 
       console.log(response.data);
+
+      showToast("Ticket created successfully", "success");
 
       // ---------------------------------------------------
       // RESET
@@ -248,74 +221,42 @@ export default function CreateTicketDrawer({ open, onClose }) {
 
       onClose();
     } catch (err) {
-      console.error(
-        "========== CREATE TICKET ERROR =========="
-      );
+      console.error("========== CREATE TICKET ERROR ==========");
 
-      console.error(
-        "STATUS:",
-        err.response?.status
-      );
+      console.error("STATUS:", err.response?.status);
 
-      console.error(
-        "DATA:",
-        err.response?.data
-      );
+      console.error("DATA:", err.response?.data);
 
-      console.error(
-        "MESSAGE:",
-        err.message
-      );
+      console.error("MESSAGE:", err.message);
 
       // ---------------------------------------------------
       // SHOW BACKEND ERROR
       // ---------------------------------------------------
 
-      let errorMessage =
-        "Failed to create ticket.";
+      let errorMessage = "Failed to create ticket.";
 
       if (err.response?.data) {
-        const backendError =
-          err.response.data;
+        const backendError = err.response.data;
 
-        if (
-          typeof backendError ===
-          "string"
-        ) {
-          errorMessage =
-            backendError;
-        } else if (
-          backendError.detail
-        ) {
-          errorMessage =
-            backendError.detail;
+        if (typeof backendError === "string") {
+          errorMessage = backendError;
+        } else if (backendError.detail) {
+          errorMessage = backendError.detail;
         } else {
-          errorMessage =
-            Object.entries(
-              backendError
-            )
-              .map(
-                ([
-                  field,
-                  messages,
-                ]) => {
-                  const message =
-                    Array.isArray(
-                      messages
-                    )
-                      ? messages.join(
-                          ", "
-                        )
-                      : messages;
+          errorMessage = Object.entries(backendError)
+            .map(([field, messages]) => {
+              const message = Array.isArray(messages)
+                ? messages.join(", ")
+                : messages;
 
-                  return `${field}: ${message}`;
-                }
-              )
-              .join("\n");
+              return `${field}: ${message}`;
+            })
+            .join("\n");
         }
       }
 
       setError(errorMessage);
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -337,11 +278,7 @@ export default function CreateTicketDrawer({ open, onClose }) {
   // =====================================================
 
   return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={handleClose}
-    >
+    <Drawer anchor="right" open={open} onClose={handleClose}>
       <Box
         component="form"
         onSubmit={handleSubmit}
@@ -356,15 +293,11 @@ export default function CreateTicketDrawer({ open, onClose }) {
           bgcolor: "#fff",
         }}
       >
-
         {/* =================================================
             HEADER
         ================================================= */}
 
-        <DrawerHeader
-          title="Create Ticket"
-          onClose={handleClose}
-        />
+        <DrawerHeader title="Create Ticket" onClose={handleClose} />
 
         {/* =================================================
             FORM CONTENT
@@ -380,7 +313,6 @@ export default function CreateTicketDrawer({ open, onClose }) {
             overflowY: "auto",
           }}
         >
-
           {/* =================================================
               ERROR
           ================================================= */}
@@ -391,16 +323,14 @@ export default function CreateTicketDrawer({ open, onClose }) {
                 p: 1.5,
                 borderRadius: "8px",
                 backgroundColor: "#FEF2F2",
-                border:
-                  "1px solid #FECACA",
+                border: "1px solid #FECACA",
               }}
             >
               <Typography
                 sx={{
                   color: "#DC2626",
                   fontSize: "13px",
-                  whiteSpace:
-                    "pre-line",
+                  whiteSpace: "pre-line",
                 }}
               >
                 {error}
@@ -415,12 +345,8 @@ export default function CreateTicketDrawer({ open, onClose }) {
           <CommonInput
             label="Ticket Name"
             name="ticketName"
-            value={
-              formData.ticketName
-            }
-            onChange={
-              handleChange
-            }
+            value={formData.ticketName}
+            onChange={handleChange}
             placeholder="Enter ticket name"
             fullWidth
             required
@@ -456,19 +382,13 @@ export default function CreateTicketDrawer({ open, onClose }) {
               fullWidth
               multiline
               rows={4}
-              value={
-                formData.description
-              }
-              onChange={
-                handleChange
-              }
+              value={formData.description}
+              onChange={handleChange}
               required
               sx={{
-                "& .MuiOutlinedInput-root":
-                  {
-                    borderRadius:
-                      "10px",
-                  },
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                },
               }}
             />
           </Box>
@@ -478,7 +398,6 @@ export default function CreateTicketDrawer({ open, onClose }) {
           ================================================= */}
 
           <Grid container spacing={2}>
-
             {/* STATUS */}
 
             <Grid size={6}>
@@ -501,49 +420,29 @@ export default function CreateTicketDrawer({ open, onClose }) {
                 </span>
               </Typography>
 
-              <FormControl
-                fullWidth
-                size="small"
-                required
-              >
-                <InputLabel id="ticket-status-label">
-                  Choose
-                </InputLabel>
+              <FormControl fullWidth size="small" required>
+                <InputLabel id="ticket-status-label">Choose</InputLabel>
 
                 <Select
                   labelId="ticket-status-label"
                   name="ticketStatus"
-                  value={
-                    formData.ticketStatus
-                  }
+                  value={formData.ticketStatus}
                   label="Choose"
-                  onChange={
-                    handleChange
-                  }
+                  onChange={handleChange}
                 >
-                  <MenuItem value="NEW">
-                    New
-                  </MenuItem>
+                  <MenuItem value="NEW">New</MenuItem>
 
-                  <MenuItem value="OPEN">
-                    Open
-                  </MenuItem>
+                  <MenuItem value="OPEN">Open</MenuItem>
 
-                  <MenuItem value="IN_PROGRESS">
-                    In Progress
-                  </MenuItem>
+                  <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
 
                   <MenuItem value="WAITING_ON_CONTACT">
                     Waiting on Contact
                   </MenuItem>
 
-                  <MenuItem value="WAITING_ON_US">
-                    Waiting on Us
-                  </MenuItem>
+                  <MenuItem value="WAITING_ON_US">Waiting on Us</MenuItem>
 
-                  <MenuItem value="CLOSED">
-                    Closed
-                  </MenuItem>
+                  <MenuItem value="CLOSED">Closed</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -570,41 +469,23 @@ export default function CreateTicketDrawer({ open, onClose }) {
                 </span>
               </Typography>
 
-              <FormControl
-                fullWidth
-                size="small"
-                required
-              >
-                <InputLabel id="source-label">
-                  Choose
-                </InputLabel>
+              <FormControl fullWidth size="small" required>
+                <InputLabel id="source-label">Choose</InputLabel>
 
                 <Select
                   labelId="source-label"
                   name="source"
-                  value={
-                    formData.source
-                  }
+                  value={formData.source}
                   label="Choose"
-                  onChange={
-                    handleChange
-                  }
+                  onChange={handleChange}
                 >
-                  <MenuItem value="CHAT">
-                    Chat
-                  </MenuItem>
+                  <MenuItem value="CHAT">Chat</MenuItem>
 
-                  <MenuItem value="EMAIL">
-                    Email
-                  </MenuItem>
+                  <MenuItem value="EMAIL">Email</MenuItem>
 
-                  <MenuItem value="PHONE">
-                    Phone
-                  </MenuItem>
+                  <MenuItem value="PHONE">Phone</MenuItem>
 
-                  <MenuItem value="WEB">
-                    Web
-                  </MenuItem>
+                  <MenuItem value="WEB">Web</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -634,41 +515,23 @@ export default function CreateTicketDrawer({ open, onClose }) {
               </span>
             </Typography>
 
-            <FormControl
-              fullWidth
-              size="small"
-              required
-            >
-              <InputLabel id="priority-label">
-                Choose
-              </InputLabel>
+            <FormControl fullWidth size="small" required>
+              <InputLabel id="priority-label">Choose</InputLabel>
 
               <Select
                 labelId="priority-label"
                 name="priority"
-                value={
-                  formData.priority
-                }
+                value={formData.priority}
                 label="Choose"
-                onChange={
-                  handleChange
-                }
+                onChange={handleChange}
               >
-                <MenuItem value="HIGH">
-                  High
-                </MenuItem>
+                <MenuItem value="HIGH">High</MenuItem>
 
-                <MenuItem value="MEDIUM">
-                  Medium
-                </MenuItem>
+                <MenuItem value="MEDIUM">Medium</MenuItem>
 
-                <MenuItem value="LOW">
-                  Low
-                </MenuItem>
+                <MenuItem value="LOW">Low</MenuItem>
 
-                <MenuItem value="CRITICAL">
-                  Critical
-                </MenuItem>
+                <MenuItem value="CRITICAL">Critical</MenuItem>
               </Select>
             </FormControl>
           </Box>
@@ -697,42 +560,23 @@ export default function CreateTicketDrawer({ open, onClose }) {
               </span>
             </Typography>
 
-            <FormControl
-              fullWidth
-              size="small"
-              required
-            >
-              <InputLabel id="ticket-owner-label">
-                Choose
-              </InputLabel>
+            <FormControl fullWidth size="small" required>
+              <InputLabel id="ticket-owner-label">Choose</InputLabel>
 
               <Select
                 labelId="ticket-owner-label"
                 multiple
                 name="ticketOwners"
-                value={
-                  formData.ticketOwners
-                }
+                value={formData.ticketOwners}
                 label="Choose"
-                onChange={
-                  handleChange
-                }
-                disabled={
-                  loadingOptions
-                }
-                renderValue={(
-                  selected
-                ) =>
+                onChange={handleChange}
+                disabled={loadingOptions}
+                renderValue={(selected) =>
                   selected
                     .map((id) => {
-                      const user =
-                        users.find(
-                          (item) =>
-                            String(
-                              item.id
-                            ) ===
-                            String(id)
-                        );
+                      const user = users.find(
+                        (item) => String(item.id) === String(id),
+                      );
 
                       if (!user) {
                         return "";
@@ -741,8 +585,7 @@ export default function CreateTicketDrawer({ open, onClose }) {
                       return (
                         `${user.first_name || ""} ${
                           user.last_name || ""
-                        }`.trim() ||
-                        user.email
+                        }`.trim() || user.email
                       );
                     })
                     .filter(Boolean)
@@ -750,40 +593,23 @@ export default function CreateTicketDrawer({ open, onClose }) {
                 }
               >
                 {loadingOptions ? (
-                  <MenuItem disabled>
-                    Loading users...
-                  </MenuItem>
-                ) : users.length ===
-                  0 ? (
-                  <MenuItem disabled>
-                    No users available
-                  </MenuItem>
+                  <MenuItem disabled>Loading users...</MenuItem>
+                ) : users.length === 0 ? (
+                  <MenuItem disabled>No users available</MenuItem>
                 ) : (
                   users.map((user) => {
                     const userName =
                       `${user.first_name || ""} ${
                         user.last_name || ""
-                      }`.trim() ||
-                      user.email;
+                      }`.trim() || user.email;
 
                     return (
-                      <MenuItem
-                        key={user.id}
-                        value={
-                          user.id
-                        }
-                      >
+                      <MenuItem key={user.id} value={user.id}>
                         <Checkbox
-                          checked={formData.ticketOwners.includes(
-                            user.id
-                          )}
+                          checked={formData.ticketOwners.includes(user.id)}
                         />
 
-                        <ListItemText
-                          primary={
-                            userName
-                          }
-                        />
+                        <ListItemText primary={userName} />
                       </MenuItem>
                     );
                   })
@@ -816,47 +642,25 @@ export default function CreateTicketDrawer({ open, onClose }) {
               </span>
             </Typography>
 
-            <FormControl
-              fullWidth
-              size="small"
-              required
-            >
-              <InputLabel id="associated-deal-label">
-                Choose
-              </InputLabel>
+            <FormControl fullWidth size="small" required>
+              <InputLabel id="associated-deal-label">Choose</InputLabel>
 
               <Select
                 labelId="associated-deal-label"
                 name="associatedDeal"
-                value={
-                  formData.associatedDeal
-                }
+                value={formData.associatedDeal}
                 label="Choose"
-                onChange={
-                  handleChange
-                }
-                disabled={
-                  loadingOptions
-                }
+                onChange={handleChange}
+                disabled={loadingOptions}
               >
                 {loadingOptions ? (
-                  <MenuItem disabled>
-                    Loading deals...
-                  </MenuItem>
-                ) : deals.length ===
-                  0 ? (
-                  <MenuItem disabled>
-                    No Closed Won deals available
-                  </MenuItem>
+                  <MenuItem disabled>Loading deals...</MenuItem>
+                ) : deals.length === 0 ? (
+                  <MenuItem disabled>No Closed Won deals available</MenuItem>
                 ) : (
                   deals.map((deal) => (
-                    <MenuItem
-                      key={deal.id}
-                      value={deal.id}
-                    >
-                      {
-                        deal.deal_name
-                      }
+                    <MenuItem key={deal.id} value={deal.id}>
+                      {deal.deal_name}
                     </MenuItem>
                   ))
                 )}
@@ -874,8 +678,7 @@ export default function CreateTicketDrawer({ open, onClose }) {
             display: "flex",
             gap: 2,
             p: 3,
-            borderTop:
-              "1px solid #E5E7EB",
+            borderTop: "1px solid #E5E7EB",
             backgroundColor: "#fff",
           }}
         >
@@ -884,9 +687,7 @@ export default function CreateTicketDrawer({ open, onClose }) {
           <CommonButton
             variant="outlined"
             fullWidth
-            onClick={
-              handleClose
-            }
+            onClick={handleClose}
             disabled={loading}
           >
             Cancel
@@ -897,18 +698,12 @@ export default function CreateTicketDrawer({ open, onClose }) {
           <CommonButton
             type="submit"
             fullWidth
-            disabled={
-              loading ||
-              loadingOptions
-            }
+            disabled={loading || loadingOptions}
           >
-            {loading
-              ? "Saving..."
-              : "Save"}
+            {loading ? "Saving..." : "Save"}
           </CommonButton>
         </Box>
       </Box>
     </Drawer>
   );
 }
-
