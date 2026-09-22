@@ -1,6 +1,4 @@
 
-
-
 import React, { 
   useState, 
 } from "react"; 
@@ -336,12 +334,29 @@ export default function MeetingCard({
               <Box 
                 sx={{ 
                   mt: 0.5, 
-                  color: "text.secondary", 
+                  color: "#000000", 
                   fontSize: 14, 
                   overflowWrap: "anywhere", 
  
                   "& p": { 
                     margin: 0, 
+                    color: "#000000 !important", 
+                  }, 
+ 
+                  "& span": { 
+                    color: "#000000 !important", 
+                  }, 
+ 
+                  "& strong": { 
+                    color: "#000000 !important", 
+                  }, 
+ 
+                  "& em": { 
+                    color: "#000000 !important", 
+                  }, 
+ 
+                  "& li": { 
+                    color: "#000000 !important", 
                   }, 
  
                   "& br": { 
@@ -511,13 +526,30 @@ export default function MeetingCard({
  
             <Box 
               sx={{ 
-                color: "#516F90", 
+                color: "#000000", 
                 fontSize: 15, 
                 overflowWrap: "anywhere", 
  
                 "& p": { 
                   marginTop: 0, 
                   marginBottom: "8px", 
+                  color: "#000000 !important", 
+                }, 
+ 
+                "& span": { 
+                  color: "#000000 !important", 
+                }, 
+ 
+                "& strong": { 
+                  color: "#000000 !important", 
+                }, 
+ 
+                "& em": { 
+                  color: "#000000 !important", 
+                }, 
+ 
+                "& li": { 
+                  color: "#000000 !important", 
                 }, 
  
                 "& ul": { 
@@ -526,10 +558,6 @@ export default function MeetingCard({
  
                 "& ol": { 
                   paddingLeft: "20px", 
-                }, 
- 
-                "& strong": { 
-                  fontWeight: 600, 
                 }, 
               }} 
               dangerouslySetInnerHTML={{ 
@@ -546,3 +574,7 @@ export default function MeetingCard({
     </Box> 
   ); 
 } 
+ 
+ 
+ 
+ 
