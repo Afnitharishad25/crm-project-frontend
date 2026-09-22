@@ -7,6 +7,7 @@ export default function ActivityTimeline({ activity }) {
 
   const type = activity.activity_type;
   const data = activity.data || {};
+  
   const createdBy = activity.created_by_name || "Unknown user";
 
   const formatDate = (date) => {
@@ -136,7 +137,46 @@ export default function ActivityTimeline({ activity }) {
         >
           {data.note}
         </Typography>
-      )}
+      )} 
+
+
+{/* Note details
+{type === "note" && (data.note || activity.note) && (
+  <Box
+    sx={{
+      fontSize: "13px",
+      color: "text.secondary",
+      mb: 0.5,
+      wordBreak: "break-word",
+
+      "& p": {
+        margin: 0,
+      },
+
+      "& ul": {
+        margin: 0,
+        paddingLeft: 2,
+      },
+
+      "& ol": {
+        margin: 0,
+        paddingLeft: 2,
+      },
+
+      "& li": {
+        margin: 0,
+      },
+
+      "& img": {
+        maxWidth: "100%",
+        height: "auto",
+      },
+    }}
+    dangerouslySetInnerHTML={{
+      __html: data.note || activity.note || "",
+    }}
+  />
+)} */}
 
       {/* Meeting details */}
       {type === "meeting" && data.title && (

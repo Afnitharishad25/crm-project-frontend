@@ -1,7 +1,4 @@
-
-
 import React, { useEffect, useState } from "react";
-
 import {
   Drawer,
   Box,
@@ -13,19 +10,15 @@ import {
   Checkbox,
   ListItemText,
 } from "@mui/material";
-
 import { useParams } from "react-router-dom";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
-
 import dayjs from "dayjs";
-
 import DrawerHeader from "../../../../../Components/common/DrawerHeader";
 import CommonInput from "../../../../../Components/common/CommonInput";
 import CommonButton from "../../../../../Components/common/CommonButton";
 import CommonSelect from "../../../../../Components/common/CommonSelect";
 import CommonDatePicker from "../../../../../Components/common/CommonDatePicker";
 import CommonEditor from "../../../../../Components/common/CommonEditor";
-
 import api from "../../../../../services/api";
 
 export default function ScheduleMeeting({
@@ -36,13 +29,18 @@ export default function ScheduleMeeting({
   module,
   moduleId,
 }) {
-  const { dealId, ticketId } = useParams();
+  const { leadId, dealId, ticketId } = useParams();
 
-  // Support both the existing API and the newer reusable API.
   const finalModule = String(
     module ||
       relatedModule ||
-      (ticketId ? "ticket" : "deal")
+      (leadId
+        ? "lead"
+        : ticketId
+        ? "ticket"
+        : dealId
+        ? "deal"
+        : "company")
   )
     .toLowerCase()
     .trim();
@@ -50,6 +48,7 @@ export default function ScheduleMeeting({
   const finalModuleId =
     moduleId ||
     objectId ||
+    leadId ||
     ticketId ||
     dealId;
 
@@ -68,36 +67,644 @@ export default function ScheduleMeeting({
   });
 
   // =========================================================
-  // FETCH USERS
+  // ROLE NORMALIZER
+  // =========================================================
+
+  const normalizeRole = (value) => {
+    if (!value) return "";
+
+    if (typeof value === "string") {
+      return value
+        .toLowerCase()
+        .replace(/[_-]/g, " ")
+        .trim();
+    }
+
+    if (typeof value === "object") {
+      return normalizeRole(
+        value.name ||
+          value.label ||
+          value.value ||
+          value.role ||
+          value.title
+      );
+    }
+
+    return "";
+  };
+
+  // =========================================================
+  // CHECK CONTACT OWNER
+  // =========================================================
+
+  const isContactOwner = (user) => {
+    const possibleRoles = [
+      user.role,
+      user.role_name,
+      user.user_role,
+      user.userRole,
+      user.roleName,
+      user.type,
+      user.user_type,
+      user.userType,
+    ];
+
+    for (const role of possibleRoles) {
+      if (normalizeRole(role) === "contact owner") {
+        return true;
+      }
+    }
+
+    if (Array.isArray(user.roles)) {
+      const hasContactOwner = user.roles.some(
+        (role) =>
+          normalizeRole(role) === "contact owner"
+      );
+
+      if (hasContactOwner) {
+        return true;
+      }
+    }
+
+    if (
+      user.role &&
+      typeof user.role === "object"
+    ) {
+      if (
+        normalizeRole(user.role) ===
+        "contact owner"
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  // =========================================================
+  // GET LEAD CONTACT OWNERS
+  // =========================================================
+
+  const getLeadContactOwners = async (
+    leadIdValue,
+    userData
+  ) => {
+    if (!leadIdValue) {
+      return [];
+    }
+
+    try {
+      console.log(
+        "================================="
+      );
+
+      console.log(
+        "FETCH LEAD:",
+        leadIdValue
+      );
+
+      const response = await api.get(
+        `/leads/leadslist/${leadIdValue}/`
+      );
+
+      console.log(
+        "LEAD DETAILS:",
+        response.data
+      );
+
+      const leadData = response.data;
+
+      // =====================================================
+      // IMPORTANT:
+      // Your Lead API returns:
+      //
+      // contact_owners: [3, 6]
+      //
+      // We also support:
+      //
+      // contact_owner_ids: [3, 6]
+      //
+      // and object format:
+      //
+      // contact_owners: [
+      //   { id: 3, ... },
+      //   { id: 6, ... }
+      // ]
+      // =====================================================
+
+      const rawContactOwners =
+        leadData?.contact_owners ??
+        leadData?.contact_owner_ids ??
+        [];
+
+      console.log(
+        "RAW LEAD CONTACT OWNERS:",
+        rawContactOwners
+      );
+
+      if (
+        !Array.isArray(rawContactOwners) ||
+        rawContactOwners.length === 0
+      ) {
+        console.log(
+          "NO CONTACT OWNERS ASSIGNED TO THIS LEAD"
+        );
+
+        return [];
+      }
+
+      // =====================================================
+      // EXTRACT OWNER IDS
+      // =====================================================
+
+      const contactOwnerIds =
+        rawContactOwners
+          .map((owner) => {
+            if (
+              typeof owner === "object" &&
+              owner !== null
+            ) {
+              return (
+                owner.id ||
+                owner.user_id ||
+                owner.value
+              );
+            }
+
+            return owner;
+          })
+          .filter(
+            (id) =>
+              id !== undefined &&
+              id !== null &&
+              id !== ""
+          )
+          .map((id) => Number(id));
+
+      console.log(
+        "CONTACT OWNER IDS:",
+        contactOwnerIds
+      );
+
+      // =====================================================
+      // FIND THOSE USERS FROM ALL USERS
+      // =====================================================
+
+      const leadContactOwners =
+        userData.filter((user) =>
+          contactOwnerIds.some(
+            (ownerId) =>
+              Number(ownerId) ===
+              Number(user.id)
+          )
+        );
+
+      console.log(
+        "LEAD CONTACT OWNERS:",
+        leadContactOwners
+      );
+
+      console.log(
+        "LEAD CONTACT OWNER COUNT:",
+        leadContactOwners.length
+      );
+
+      return leadContactOwners;
+    } catch (error) {
+      console.error(
+        "FETCH LEAD CONTACT OWNERS ERROR:",
+        error.response?.data || error
+      );
+
+      return [];
+    }
+  };
+
+  // =========================================================
+  // FETCH ATTENDEES
   // =========================================================
 
   useEffect(() => {
     if (!open) return;
 
-    const fetchUsers = async () => {
+    const fetchAttendees = async () => {
       try {
-        const response = await api.get("/accounts/users/");
+        const response = await api.get(
+          "/accounts/users/"
+        );
 
-        console.log("USERS RESPONSE:", response.data);
+        console.log(
+          "================================="
+        );
+
+        console.log(
+          "USERS RESPONSE:",
+          response.data
+        );
+
+        console.log(
+          "================================="
+        );
 
         const userData = Array.isArray(response.data)
           ? response.data
           : response.data?.results || [];
 
-        setUsers(userData);
+        console.log(
+          "ALL USERS:",
+          userData
+        );
+
+        // =====================================================
+        // LEAD
+        // =====================================================
+
+        if (
+          finalModule === "lead" &&
+          finalModuleId
+        ) {
+          const leadContactOwners =
+            await getLeadContactOwners(
+              finalModuleId,
+              userData
+            );
+
+          console.log(
+            "LEAD ATTENDEES:",
+            leadContactOwners
+          );
+
+          setUsers(
+            leadContactOwners
+          );
+
+          // IMPORTANT:
+          // Do NOT automatically select all owners.
+          // They should appear as unchecked checkboxes.
+          setFormData((prev) => ({
+            ...prev,
+            attendees: [],
+          }));
+
+          return;
+        }
+
+        // =====================================================
+        // DEAL
+        // =====================================================
+
+        if (
+          finalModule === "deal" &&
+          finalModuleId
+        ) {
+          try {
+            console.log(
+              "FETCH DEAL:",
+              finalModuleId
+            );
+
+            const dealResponse =
+              await api.get(
+                `/deals/${finalModuleId}/`
+              );
+
+            console.log(
+              "DEAL DETAILS:",
+              dealResponse.data
+            );
+
+            const dealData =
+              dealResponse.data;
+
+            const associatedLeadId =
+              dealData?.associated_lead;
+
+            console.log(
+              "DEAL ASSOCIATED LEAD:",
+              associatedLeadId
+            );
+
+            if (associatedLeadId) {
+              const leadContactOwners =
+                await getLeadContactOwners(
+                  associatedLeadId,
+                  userData
+                );
+
+              console.log(
+                "DEAL ATTENDEES:",
+                leadContactOwners
+              );
+
+              setUsers(
+                leadContactOwners
+              );
+
+              // Do not preselect.
+              setFormData((prev) => ({
+                ...prev,
+                attendees: [],
+              }));
+
+              return;
+            }
+
+            const contactOwners =
+              userData.filter(
+                (user) =>
+                  isContactOwner(user)
+              );
+
+            setUsers(
+              contactOwners
+            );
+
+            setFormData((prev) => ({
+              ...prev,
+              attendees: [],
+            }));
+          } catch (error) {
+            console.error(
+              "FETCH DEAL ERROR:",
+              error.response?.data ||
+                error
+            );
+
+            const contactOwners =
+              userData.filter(
+                (user) =>
+                  isContactOwner(user)
+              );
+
+            setUsers(
+              contactOwners
+            );
+
+            setFormData((prev) => ({
+              ...prev,
+              attendees: [],
+            }));
+          }
+
+          return;
+        }
+
+        // =====================================================
+        // TICKET
+        // =====================================================
+
+        if (
+          finalModule === "ticket" &&
+          finalModuleId
+        ) {
+          try {
+            console.log(
+              "FETCH TICKET:",
+              finalModuleId
+            );
+
+            const ticketResponse =
+              await api.get(
+                `/tickets/${finalModuleId}/`
+              );
+
+            console.log(
+              "TICKET DETAILS:",
+              ticketResponse.data
+            );
+
+            const ticketData =
+              ticketResponse.data;
+
+            const associatedDealId =
+              ticketData?.associated_deal ||
+              ticketData?.associated_deal_id;
+
+            console.log(
+              "TICKET ASSOCIATED DEAL:",
+              associatedDealId
+            );
+
+            if (associatedDealId) {
+              const dealResponse =
+                await api.get(
+                  `/deals/${associatedDealId}/`
+                );
+
+              console.log(
+                "TICKET DEAL DETAILS:",
+                dealResponse.data
+              );
+
+              const dealData =
+                dealResponse.data;
+
+              const associatedLeadId =
+                dealData?.associated_lead;
+
+              console.log(
+                "TICKET DEAL ASSOCIATED LEAD:",
+                associatedLeadId
+              );
+
+              if (associatedLeadId) {
+                const leadContactOwners =
+                  await getLeadContactOwners(
+                    associatedLeadId,
+                    userData
+                  );
+
+                console.log(
+                  "TICKET ATTENDEES:",
+                  leadContactOwners
+                );
+
+                setUsers(
+                  leadContactOwners
+                );
+
+                // Do not preselect.
+                setFormData((prev) => ({
+                  ...prev,
+                  attendees: [],
+                }));
+
+                return;
+              }
+            }
+
+            const contactOwners =
+              userData.filter(
+                (user) =>
+                  isContactOwner(user)
+              );
+
+            setUsers(
+              contactOwners
+            );
+
+            setFormData((prev) => ({
+              ...prev,
+              attendees: [],
+            }));
+          } catch (error) {
+            console.error(
+              "FETCH TICKET / DEAL / LEAD ERROR:",
+              error.response?.data ||
+                error
+            );
+
+            const contactOwners =
+              userData.filter(
+                (user) =>
+                  isContactOwner(user)
+              );
+
+            setUsers(
+              contactOwners
+            );
+
+            setFormData((prev) => ({
+              ...prev,
+              attendees: [],
+            }));
+          }
+
+          return;
+        }
+
+        // =====================================================
+        // COMPANY
+        // =====================================================
+
+        if (
+          finalModule === "company" &&
+          finalModuleId
+        ) {
+          try {
+            console.log(
+              "FETCH COMPANY:",
+              finalModuleId
+            );
+
+            const companyResponse =
+              await api.get(
+                `/companies/${finalModuleId}/`
+              );
+
+            console.log(
+              "COMPANY DETAILS:",
+              companyResponse.data
+            );
+
+            const companyData =
+              companyResponse.data;
+
+            const companyOwnerId =
+              companyData?.company_owner;
+
+            console.log(
+              "COMPANY OWNER ID:",
+              companyOwnerId
+            );
+
+            if (companyOwnerId) {
+              const companyOwner =
+                userData.filter(
+                  (user) =>
+                    Number(user.id) ===
+                    Number(companyOwnerId)
+                );
+
+              console.log(
+                "COMPANY OWNER:",
+                companyOwner
+              );
+
+              setUsers(
+                companyOwner
+              );
+
+              setFormData((prev) => ({
+                ...prev,
+                attendees: [],
+              }));
+
+              return;
+            }
+
+            setUsers([]);
+
+            setFormData((prev) => ({
+              ...prev,
+              attendees: [],
+            }));
+          } catch (error) {
+            console.error(
+              "FETCH COMPANY ERROR:",
+              error.response?.data ||
+                error
+            );
+
+            setUsers([]);
+
+            setFormData((prev) => ({
+              ...prev,
+              attendees: [],
+            }));
+          }
+
+          return;
+        }
+
+        // =====================================================
+        // DEFAULT
+        // =====================================================
+
+        const contactOwners =
+          userData.filter(
+            (user) =>
+              isContactOwner(user)
+          );
+
+        console.log(
+          "CONTACT OWNERS:",
+          contactOwners
+        );
+
+        console.log(
+          "CONTACT OWNER COUNT:",
+          contactOwners.length
+        );
+
+        setUsers(
+          contactOwners
+        );
+
+        setFormData((prev) => ({
+          ...prev,
+          attendees: [],
+        }));
       } catch (error) {
         console.error(
-          "FETCH USERS ERROR:",
-          error.response?.data || error
+          "FETCH CONTACT OWNERS ERROR:",
+          error.response?.data ||
+            error
         );
+
+        setUsers([]);
       }
     };
 
-    fetchUsers();
-  }, [open]);
+    fetchAttendees();
+  }, [
+    open,
+    finalModule,
+    finalModuleId,
+  ]);
 
   // =========================================================
-  // NORMAL INPUT CHANGE
+  // FORM CHANGE
   // =========================================================
 
   const handleChange = (event) => {
@@ -132,33 +739,53 @@ export default function ScheduleMeeting({
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    console.log("=================================");
-    console.log("SAVE MEETING CLICKED");
-    console.log("MODULE:", finalModule);
-    console.log("MODULE ID:", finalModuleId);
-    console.log("=================================");
+    console.log(
+      "================================="
+    );
 
-    // =======================================================
-    // VALIDATION
-    // =======================================================
+    console.log(
+      "SAVE MEETING CLICKED"
+    );
+
+    console.log(
+      "MODULE:",
+      finalModule
+    );
+
+    console.log(
+      "MODULE ID:",
+      finalModuleId
+    );
+
+    console.log(
+      "================================="
+    );
 
     if (!formData.title.trim()) {
-      alert("Please enter meeting title.");
+      alert(
+        "Please enter meeting title."
+      );
       return;
     }
 
     if (!formData.startDate) {
-      alert("Please select start date.");
+      alert(
+        "Please select start date."
+      );
       return;
     }
 
     if (!formData.startTime) {
-      alert("Please select start time.");
+      alert(
+        "Please select start time."
+      );
       return;
     }
 
     if (!formData.endTime) {
-      alert("Please select end time.");
+      alert(
+        "Please select end time."
+      );
       return;
     }
 
@@ -167,22 +794,32 @@ export default function ScheduleMeeting({
         dayjs(formData.startTime)
       )
     ) {
-      alert("End time must be after start time.");
+      alert(
+        "End time must be after start time."
+      );
       return;
     }
 
-    if (formData.attendees.length === 0) {
-      alert("Please select at least one attendee.");
+    if (
+      formData.attendees.length === 0
+    ) {
+      alert(
+        "Please select at least one attendee."
+      );
       return;
     }
 
     if (!formData.location) {
-      alert("Please select location.");
+      alert(
+        "Please select location."
+      );
       return;
     }
 
     if (!formData.note.trim()) {
-      alert("Please enter a note.");
+      alert(
+        "Please enter a note."
+      );
       return;
     }
 
@@ -191,70 +828,87 @@ export default function ScheduleMeeting({
         finalModule.charAt(0).toUpperCase() +
         finalModule.slice(1);
 
-      alert(`${moduleName} ID not found.`);
+      alert(
+        `${moduleName} ID not found.`
+      );
+
       return;
     }
 
-    // =======================================================
-    // BACKEND PAYLOAD
-    // =======================================================
-
     const payload = {
       module: finalModule,
-      module_id: Number(finalModuleId),
 
-      title: formData.title.trim(),
+      module_id:
+        Number(finalModuleId),
 
-      start_date: dayjs(formData.startDate).format(
-        "YYYY-MM-DD"
-      ),
+      title:
+        formData.title.trim(),
 
-      start_time: dayjs(formData.startTime).format(
-        "HH:mm:ss"
-      ),
+      start_date:
+        dayjs(
+          formData.startDate
+        ).format("YYYY-MM-DD"),
 
-      end_time: dayjs(formData.endTime).format(
-        "HH:mm:ss"
-      ),
+      start_time:
+        dayjs(
+          formData.startTime
+        ).format("HH:mm:ss"),
 
-      attendees: formData.attendees.map(
-        (id) => Number(id)
-      ),
+      end_time:
+        dayjs(
+          formData.endTime
+        ).format("HH:mm:ss"),
 
-      location: formData.location,
+      attendees:
+        formData.attendees.map(
+          (id) => Number(id)
+        ),
 
-      reminder: formData.reminder || "",
+      location:
+        formData.location,
 
-      note: formData.note.trim(),
+      reminder:
+        formData.reminder || "",
+
+      note:
+        formData.note.trim(),
     };
 
-    console.log("=================================");
-    console.log("CREATE MEETING PAYLOAD:");
-    console.log(JSON.stringify(payload, null, 2));
-    console.log("=================================");
+    console.log(
+      "================================="
+    );
 
-    // =======================================================
-    // API CALL
-    // =======================================================
+    console.log(
+      "CREATE MEETING PAYLOAD:"
+    );
+
+    console.log(
+      JSON.stringify(
+        payload,
+        null,
+        2
+      )
+    );
+
+    console.log(
+      "================================="
+    );
 
     try {
       setSaving(true);
 
-      const response = await api.post(
-        "/activities/meeting/",
-        payload
-      );
+      const response =
+        await api.post(
+          "/activities/meeting/",
+          payload
+        );
 
       console.log(
         "MEETING CREATED:",
         response.data
       );
 
-      alert("Meeting created successfully.");
-
-      // =====================================================
-      // RESET FORM
-      // =====================================================
+      // SUCCESS POPUP REMOVED
 
       setFormData({
         title: "",
@@ -271,7 +925,8 @@ export default function ScheduleMeeting({
     } catch (error) {
       console.error(
         "CREATE MEETING ERROR:",
-        error.response?.data || error
+        error.response?.data ||
+          error
       );
 
       console.error(
@@ -284,7 +939,8 @@ export default function ScheduleMeeting({
         error.config?.data
       );
 
-      const errorData = error.response?.data;
+      const errorData =
+        error.response?.data;
 
       if (errorData) {
         alert(
@@ -308,41 +964,45 @@ export default function ScheduleMeeting({
   // ATTENDEE OPTIONS
   // =========================================================
 
-  const attendeeOptions = users.map((user) => ({
-    label:
-      user.name ||
-      user.full_name ||
-      `${user.first_name || ""} ${
-        user.last_name || ""
-      }`.trim() ||
-      user.email ||
-      `User ${user.id}`,
+  const attendeeOptions =
+    users.map((user) => ({
+      label:
+        user.name ||
+        user.full_name ||
+        `${user.first_name || ""} ${
+          user.last_name || ""
+        }`.trim() ||
+        user.email ||
+        `User ${user.id}`,
 
-    value: user.id,
-  }));
+      value: user.id,
+    }));
 
-  // =========================================================
-  // SELECTED ATTENDEE NAMES
-  // =========================================================
-
-  const selectedAttendeeNames = attendeeOptions
-    .filter((option) =>
-      formData.attendees.some(
-        (id) =>
-          String(id) === String(option.value)
+  const selectedAttendeeNames =
+    attendeeOptions
+      .filter((option) =>
+        formData.attendees.some(
+          (id) =>
+            String(id) ===
+            String(option.value)
+        )
       )
-    )
-    .map((option) => option.label);
+      .map(
+        (option) =>
+          option.label
+      );
 
   // =========================================================
-  // RETURN
+  // UI
   // =========================================================
 
   return (
     <Drawer
       anchor="right"
       open={open}
-      onClose={saving ? undefined : onClose}
+      onClose={
+        saving ? undefined : onClose
+      }
     >
       <Box
         component="form"
@@ -412,7 +1072,9 @@ export default function ScheduleMeeting({
             >
               <TimePicker
                 label="Start Time"
-                value={formData.startTime}
+                value={
+                  formData.startTime
+                }
                 onChange={(newValue) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -437,7 +1099,9 @@ export default function ScheduleMeeting({
             >
               <TimePicker
                 label="End Time"
-                value={formData.endTime}
+                value={
+                  formData.endTime
+                }
                 onChange={(newValue) =>
                   setFormData((prev) => ({
                     ...prev,
@@ -484,15 +1148,25 @@ export default function ScheduleMeeting({
               <Select
                 multiple
                 displayEmpty
-                value={formData.attendees}
-                onChange={handleAttendeeChange}
-                renderValue={(selected) => {
-                  if (!selected.length) {
+                value={
+                  formData.attendees
+                }
+                onChange={
+                  handleAttendeeChange
+                }
+                renderValue={(
+                  selected
+                ) => {
+                  if (
+                    !selected.length
+                  ) {
                     return (
                       <Typography
                         sx={{
-                          color: "#98A2B3",
-                          fontSize: "16px",
+                          color:
+                            "#98A2B3",
+                          fontSize:
+                            "16px",
                         }}
                       >
                         Choose
@@ -507,56 +1181,90 @@ export default function ScheduleMeeting({
                 sx={{
                   minHeight: "44px",
                   borderRadius: "10px",
-                  backgroundColor: "#fff",
+                  backgroundColor:
+                    "#fff",
 
                   "& .MuiOutlinedInput-notchedOutline":
                     {
-                      borderColor: "#D0D5DD",
+                      borderColor:
+                        "#D0D5DD",
                     },
 
                   "&:hover .MuiOutlinedInput-notchedOutline":
                     {
-                      borderColor: "#D0D5DD",
+                      borderColor:
+                        "#D0D5DD",
                     },
 
                   "&.Mui-focused .MuiOutlinedInput-notchedOutline":
                     {
-                      borderColor: "#6941C6",
-                      borderWidth: "1px",
+                      borderColor:
+                        "#6941C6",
+                      borderWidth:
+                        "1px",
                     },
 
-                  "& .MuiSelect-select": {
-                    padding: "10px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    fontSize: "16px",
-                    color: "#344054",
-                  },
+                  "& .MuiSelect-select":
+                    {
+                      padding:
+                        "10px 14px",
+                      display:
+                        "flex",
+                      alignItems:
+                        "center",
+                      fontSize:
+                        "16px",
+                      color:
+                        "#344054",
+                    },
 
-                  "& .MuiSelect-icon": {
-                    color: "#667085",
-                    right: 12,
-                  },
+                  "& .MuiSelect-icon":
+                    {
+                      color:
+                        "#667085",
+                      right: 12,
+                    },
                 }}
               >
-                {attendeeOptions.map((option) => (
-                  <MenuItem
-                    key={option.value}
-                    value={option.value}
-                  >
-                    <Checkbox
-                      checked={formData.attendees.some(
-                        (id) =>
-                          String(id) ===
-                          String(option.value)
-                      )}
-                    />
+                {attendeeOptions.length >
+                0 ? (
+                  attendeeOptions.map(
+                    (option) => (
+                      <MenuItem
+                        key={
+                          option.value
+                        }
+                        value={
+                          option.value
+                        }
+                      >
+                        <Checkbox
+                          checked={formData.attendees.some(
+                            (id) =>
+                              String(
+                                id
+                              ) ===
+                              String(
+                                option.value
+                              )
+                          )}
+                        />
 
+                        <ListItemText
+                          primary={
+                            option.label
+                          }
+                        />
+                      </MenuItem>
+                    )
+                  )
+                ) : (
+                  <MenuItem disabled>
                     <ListItemText
-                      primary={option.label}
+                      primary="No Contact Owners found"
                     />
                   </MenuItem>
-                ))}
+                )}
               </Select>
             </FormControl>
           </Box>
@@ -567,7 +1275,9 @@ export default function ScheduleMeeting({
             label="Location"
             required
             name="location"
-            value={formData.location}
+            value={
+              formData.location
+            }
             onChange={handleChange}
             placeholder="Choose"
             options={[
@@ -584,28 +1294,35 @@ export default function ScheduleMeeting({
           <CommonSelect
             label="Reminder"
             name="reminder"
-            value={formData.reminder}
+            value={
+              formData.reminder
+            }
             onChange={handleChange}
             placeholder="Choose"
             options={[
               {
-                label: "5 minutes before",
+                label:
+                  "5 minutes before",
                 value: "5_MIN",
               },
               {
-                label: "15 minutes before",
+                label:
+                  "15 minutes before",
                 value: "15_MIN",
               },
               {
-                label: "30 minutes before",
+                label:
+                  "30 minutes before",
                 value: "30_MIN",
               },
               {
-                label: "1 hour before",
+                label:
+                  "1 hour before",
                 value: "1_HOUR",
               },
               {
-                label: "1 day before",
+                label:
+                  "1 day before",
                 value: "1_DAY",
               },
             ]}
@@ -613,17 +1330,39 @@ export default function ScheduleMeeting({
 
           {/* NOTE */}
 
-          <CommonEditor
-            label="Note"
-            required
-            value={formData.note}
-            onChange={(value) =>
-              setFormData((prev) => ({
-                ...prev,
-                note: value,
-              }))
-            }
-          />
+          <Box
+            className="lead-meeting-note-editor"
+            sx={{
+              "& .ql-editor": {
+                color:
+                  "#344054 !important",
+              },
+
+              "& .ql-editor p": {
+                color:
+                  "#344054 !important",
+              },
+
+              "& .ql-editor.ql-blank::before":
+                {
+                  color:
+                    "#98A2B3 !important",
+                  fontStyle: "normal",
+                },
+            }}
+          >
+            <CommonEditor
+              label="Note"
+              required
+              value={formData.note}
+              onChange={(value) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  note: value,
+                }))
+              }
+            />
+          </Box>
         </Box>
 
         {/* FOOTER */}
@@ -633,7 +1372,8 @@ export default function ScheduleMeeting({
             display: "flex",
             gap: 2,
             p: 3,
-            borderTop: "1px solid #E5E7EB",
+            borderTop:
+              "1px solid #E5E7EB",
           }}
         >
           <CommonButton
@@ -650,7 +1390,9 @@ export default function ScheduleMeeting({
             fullWidth
             disabled={saving}
           >
-            {saving ? "Saving..." : "Save"}
+            {saving
+              ? "Saving..."
+              : "Save"}
           </CommonButton>
         </Box>
       </Box>
