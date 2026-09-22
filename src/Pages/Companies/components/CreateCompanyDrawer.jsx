@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from "react";
 
-import {
-  Drawer,
-  Box,
-  Grid,
-} from "@mui/material";
+import { Drawer, Box, Grid } from "@mui/material";
 
 import DrawerHeader from "../../../Components/common/DrawerHeader";
 import CommonInput from "../../../Components/common/CommonInput";
 import CommonButton from "../../../Components/common/CommonButton";
 import PhoneInputField from "../../../Components/common/PhoneInputField";
 import CommonSelect from "../../../Components/common/CommonSelect";
-
+import { useToast } from "../../../Components/common/Toast";
 import api from "../../../services/api";
 
 export default function CreateCompanyDrawer({
@@ -20,6 +16,8 @@ export default function CreateCompanyDrawer({
   onCompanyCreated,
   company,
 }) {
+  const { showToast } = useToast();
+
   // =====================================================
   // EMPTY FORM
   // =====================================================
@@ -129,91 +127,64 @@ export default function CreateCompanyDrawer({
       try {
         setError("");
 
-        console.log(
-          "Loading company into edit form:",
-          company
-        );
+        console.log("Loading company into edit form:", company);
 
         // =================================================
         // COMPANY OWNER ID
         // =================================================
 
         const ownerId =
-          company.company_owner !== undefined &&
-          company.company_owner !== null
+          company.company_owner !== undefined && company.company_owner !== null
             ? String(
                 typeof company.company_owner === "object"
                   ? company.company_owner.id
-                  : company.company_owner
+                  : company.company_owner,
               )
             : "";
 
-        console.log(
-          "Company Owner ID:",
-          ownerId
-        );
+        console.log("Company Owner ID:", ownerId);
 
-        console.log(
-          "Company Owner Name:",
-          company.company_owner_name
-        );
+        console.log("Company Owner Name:", company.company_owner_name);
 
         // =================================================
         // PHONE NUMBER
         // =================================================
 
-        const phoneNumber =
-          company.phone_number
-            ? String(company.phone_number).trim()
-            : "";
+        const phoneNumber = company.phone_number
+          ? String(company.phone_number).trim()
+          : "";
 
         // =================================================
         // SET FORM DATA
         // =================================================
 
         setFormData({
-          domainName:
-            company.domain_name || "",
+          domainName: company.domain_name || "",
 
-          companyName:
-            company.company_name || "",
+          companyName: company.company_name || "",
 
-          companyOwner:
-            ownerId,
+          companyOwner: ownerId,
 
-          industry:
-            company.industry || "",
+          industry: company.industry || "",
 
-          type:
-            company.type || "",
+          type: company.type || "",
 
-          city:
-            company.city || "",
+          city: company.city || "",
 
-          country:
-            company.country_region || "",
+          country: company.country_region || "",
 
-          noOfEmployees:
-            company.no_of_employees ?? "",
+          noOfEmployees: company.no_of_employees ?? "",
 
-          annualRevenue:
-            company.annual_revenue ?? "",
+          annualRevenue: company.annual_revenue ?? "",
 
-          phoneNumber:
-            phoneNumber,
+          phoneNumber: phoneNumber,
 
-          email:
-            company.email || "",
+          email: company.email || "",
         });
       } catch (error) {
-        console.error(
-          "Error loading company:",
-          error
-        );
+        console.error("Error loading company:", error);
 
-        setError(
-          "Failed to load company information."
-        );
+        setError("Failed to load company information.");
       }
     };
 
@@ -238,9 +209,7 @@ export default function CreateCompanyDrawer({
     // ===================================================
 
     if (phoneString.startsWith("+971")) {
-      const localNumber = phoneString
-        .substring(4)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(4).replace(/\D/g, "");
 
       if (localNumber.length !== 9) {
         return "UAE phone number must contain exactly 9 digits.";
@@ -256,9 +225,7 @@ export default function CreateCompanyDrawer({
     // ===================================================
 
     if (phoneString.startsWith("+91")) {
-      const localNumber = phoneString
-        .substring(3)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(3).replace(/\D/g, "");
 
       if (localNumber.length !== 10) {
         return "India phone number must contain exactly 10 digits.";
@@ -274,9 +241,7 @@ export default function CreateCompanyDrawer({
     // ===================================================
 
     if (phoneString.startsWith("+1")) {
-      const localNumber = phoneString
-        .substring(2)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(2).replace(/\D/g, "");
 
       if (localNumber.length !== 10) {
         return "US phone number must contain exactly 10 digits.";
@@ -292,9 +257,7 @@ export default function CreateCompanyDrawer({
     // ===================================================
 
     if (phoneString.startsWith("+44")) {
-      const localNumber = phoneString
-        .substring(3)
-        .replace(/\D/g, "");
+      const localNumber = phoneString.substring(3).replace(/\D/g, "");
 
       if (localNumber.length !== 10) {
         return "UK phone number must contain exactly 10 digits.";
@@ -321,10 +284,7 @@ export default function CreateCompanyDrawer({
   // =====================================================
 
   const handleChange = (e) => {
-    const {
-      name,
-      value,
-    } = e.target;
+    const { name, value } = e.target;
 
     // ===================================================
     // PHONE NUMBER
@@ -379,9 +339,7 @@ export default function CreateCompanyDrawer({
     // PHONE VALIDATION
     // ===================================================
 
-    const phoneError = validatePhoneNumber(
-      formData.phoneNumber
-    );
+    const phoneError = validatePhoneNumber(formData.phoneNumber);
 
     if (phoneError) {
       setError(phoneError);
@@ -405,96 +363,66 @@ export default function CreateCompanyDrawer({
       // CLEAN PHONE NUMBER
       // =================================================
 
-      const phoneNumber = String(
-        formData.phoneNumber || ""
-      ).trim();
+      const phoneNumber = String(formData.phoneNumber || "").trim();
 
       // =================================================
       // PAYLOAD
       // =================================================
 
       const payload = {
-        domain_name:
-          formData.domainName,
+        domain_name: formData.domainName,
 
-        company_name:
-          formData.companyName,
+        company_name: formData.companyName,
 
         // Database receives USER ID
-        company_owner:
-          Number(formData.companyOwner),
+        company_owner: Number(formData.companyOwner),
 
-        industry:
-          formData.industry,
+        industry: formData.industry,
 
-        type:
-          formData.type,
+        type: formData.type,
 
-        city:
-          formData.city,
+        city: formData.city,
 
-        country_region:
-          formData.country,
+        country_region: formData.country,
 
-        no_of_employees:
-          formData.noOfEmployees
-            ? Number(formData.noOfEmployees)
-            : null,
+        no_of_employees: formData.noOfEmployees
+          ? Number(formData.noOfEmployees)
+          : null,
 
-        annual_revenue:
-          formData.annualRevenue || null,
+        annual_revenue: formData.annualRevenue || null,
 
-        phone_number:
-          phoneNumber,
+        phone_number: phoneNumber,
 
-        email:
-          formData.email,
+        email: formData.email,
       };
 
-      console.log(
-        "Company payload:",
-        payload
-      );
+      console.log("Company payload:", payload);
 
       // =================================================
       // UPDATE COMPANY
       // =================================================
 
       if (isEditMode) {
-        console.log(
-          "Updating company ID:",
-          company.id
-        );
+        console.log("Updating company ID:", company.id);
 
-        const response = await api.put(
-          `/companies/${company.id}/`,
-          payload
-        );
+        const response = await api.put(`/companies/${company.id}/`, payload);
 
-        console.log(
-          "Company updated:",
-          response.data
-        );
+        console.log("Company updated:", response.data);
+
+        showToast("Company updated successfully", "success");
       }
 
       // =================================================
       // CREATE COMPANY
       // =================================================
-
       else {
-        console.log(
-          "Creating company"
-        );
+        console.log("Creating company");
 
-        const response = await api.post(
-          "/companies/",
-          payload
-        );
+        const response = await api.post("/companies/", payload);
 
-        console.log(
-          "Company created:",
-          response.data
-        );
+        console.log("Company created:", response.data);
+
+        showToast("Company created successfully", "success");
       }
 
       // =================================================
@@ -519,29 +447,31 @@ export default function CreateCompanyDrawer({
 
       onClose();
     } catch (error) {
-      console.error(
-        "Error saving company:",
-        error
-      );
+      console.error("Error saving company:", error);
 
-      console.log(
-        "Backend error:",
+      console.log("Backend error:", error.response?.data);
+
+      // if (error.response?.data) {
+      //   setError(JSON.stringify(error.response.data));
+      // } else {
+      //   setError(
+      //     isEditMode
+      //       ? "Failed to update company."
+      //       : "Failed to create company.",
+      //   );
+      // }
+
+      const errorMessage = isEditMode
+        ? "Failed to update company."
+        : "Failed to create company.";
+
+      setError(
         error.response?.data
+          ? JSON.stringify(error.response.data)
+          : errorMessage,
       );
 
-      if (error.response?.data) {
-        setError(
-          JSON.stringify(
-            error.response.data
-          )
-        );
-      } else {
-        setError(
-          isEditMode
-            ? "Failed to update company."
-            : "Failed to create company."
-        );
-      }
+      showToast(errorMessage, "error");
     } finally {
       setLoading(false);
     }
@@ -552,11 +482,7 @@ export default function CreateCompanyDrawer({
   // =====================================================
 
   return (
-    <Drawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-    >
+    <Drawer anchor="right" open={open} onClose={onClose}>
       <Box
         component="form"
         onSubmit={handleSubmit}
@@ -573,11 +499,7 @@ export default function CreateCompanyDrawer({
         ================================================= */}
 
         <DrawerHeader
-          title={
-            isEditMode
-              ? "Edit Company"
-              : "Create Company"
-          }
+          title={isEditMode ? "Edit Company" : "Create Company"}
           onClose={onClose}
         />
 
@@ -657,10 +579,7 @@ export default function CreateCompanyDrawer({
               INDUSTRY + TYPE
           ================================================= */}
 
-          <Grid
-            container
-            spacing={2}
-          >
+          <Grid container spacing={2}>
             <Grid
               size={{
                 xs: 12,
@@ -693,12 +612,7 @@ export default function CreateCompanyDrawer({
                 label="Type"
                 required
                 placeholder="Choose"
-                options={[
-                  "Private",
-                  "Public",
-                  "Startup",
-                  "Enterprise",
-                ]}
+                options={["Private", "Public", "Startup", "Enterprise"]}
                 name="type"
                 value={formData.type}
                 onChange={handleChange}
@@ -815,16 +729,8 @@ export default function CreateCompanyDrawer({
               SAVE / UPDATE
           ================================================= */}
 
-          <CommonButton
-            type="submit"
-            fullWidth
-            disabled={loading}
-          >
-            {loading
-              ? "Saving..."
-              : isEditMode
-              ? "Update"
-              : "Save"}
+          <CommonButton type="submit" fullWidth disabled={loading}>
+            {loading ? "Saving..." : isEditMode ? "Update" : "Save"}
           </CommonButton>
         </Box>
       </Box>
